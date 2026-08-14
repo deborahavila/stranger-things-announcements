@@ -96,6 +96,25 @@ python3 scripts/make_art.py
 git add assets && git commit -m "chore: regenerate announcement banners"
 ```
 
+## Card copy
+
+Each day's card is assembled from `announcements.json`:
+
+| Key | Purpose |
+|---|---|
+| `emoji` | Prefixes the headline. |
+| `hype` | Short bold lead sentence before the description. |
+| `checklist` | Emoji bullet reminders. Keep these actionable and do not restate the description. |
+| `mention` | Top-level. Rendered as `📢 @everyone`. |
+| `footer` | Top-level. Subtle line at the bottom of every card. |
+
+**`mention` does not notify anyone.** Adaptive Cards can mention specific users through
+`msteams.entities` with AAD IDs, but there is no channel-wide mention available over an
+incoming webhook. The line is presentational only.
+
+Open pull requests are marked 🚧 for draft and 👀 for awaiting review, drafts first, capped
+at `MAX_PRS_SHOWN` (10) with an overflow line. The action button links to the full list.
+
 ## Per-day framing
 
 Each entry in `announcements.json` accepts three optional keys for shots that need

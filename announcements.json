@@ -8,19 +8,40 @@
       "title": "Be ready for the Release Cut...",
       "description": "Prepare your work, and have all possible reviews before going to Staging on Wednesday.",
       "asset": "monday.png",
-      "source_image": "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgi_2L2QTHhJSQiCaeCcQG7xvHIrae-GrFXM-2m27dXatpAZzxbaHU-2YYJ9huRE7smeyyLAJColChnUQBfkWMofKNZEABHWh4hrS6UgKuw4n24F2lu-VSv2Ng-VNrhAbs6MAVTL_K4xNBR/s1600/stranger+9.jpeg"
+      "source_image": "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgi_2L2QTHhJSQiCaeCcQG7xvHIrae-GrFXM-2m27dXatpAZzxbaHU-2YYJ9huRE7smeyyLAJColChnUQBfkWMofKNZEABHWh4hrS6UgKuw4n24F2lu-VSv2Ng-VNrhAbs6MAVTL_K4xNBR/s1600/stranger+9.jpeg",
+      "emoji": "🗓️",
+      "hype": "Release week has started.",
+      "checklist": [
+        "🔍 Request reviews on everything you have open",
+        "🧪 Get CI green early, not on Wednesday morning",
+        "🔗 Link each PR to its ADO ticket"
+      ]
     },
     "Tuesday": {
       "title": "The Release Cut is tomorrow...",
       "description": "It’s time to check if your work is really ready for Staging.",
       "asset": "tuesday.png",
-      "source_image": "https://static.beebom.com/wp-content/uploads/2025/12/stranger-things-season-5-volume-2.jpg?quality=100"
+      "source_image": "https://static.beebom.com/wp-content/uploads/2025/12/stranger-things-season-5-volume-2.jpg?quality=100",
+      "emoji": "⏳",
+      "hype": "One day left.",
+      "checklist": [
+        "✅ Land your final reviews today",
+        "🧹 Resolve every outstanding comment",
+        "🚦 Confirm your work is genuinely Staging-ready"
+      ]
     },
     "Wednesday": {
       "title": "Release Cut Day!",
       "description": "The release cut will be made around 8pm PST.",
       "asset": "wednesday.png",
-      "source_image": "https://static0.colliderimages.com/wordpress/wp-content/uploads/2022/08/stranger-things-vfx-sadie-sink-social-featured.jpg"
+      "source_image": "https://static0.colliderimages.com/wordpress/wp-content/uploads/2022/08/stranger-things-vfx-sadie-sink-social-featured.jpg",
+      "emoji": "✂️",
+      "hype": "This is the day.",
+      "checklist": [
+        "🛑 Merge before 8pm PST, or wait for the next cut",
+        "👀 Watch for the release branch to appear",
+        "🧯 Raise blockers in this channel before the cut"
+      ]
     },
     "Thursday": {
       "title": "DEPLOYMENT DAY!",
@@ -34,8 +55,17 @@
       ],
       "punch": 0.05,
       "saturation": 1.0,
-      "wash": 0
+      "wash": 0,
+      "emoji": "🚀",
+      "hype": "Ship it.",
+      "checklist": [
+        "📋 Verify your changes on Staging before tonight",
+        "🆘 Stay reachable during the deploy window",
+        "🔎 Sanity-check production once it is live"
+      ]
     }
   },
-  "logo": "brand/nrg-logo.png"
+  "logo": "brand/nrg-logo.png",
+  "mention": "@everyone",
+  "footer": "Release cut Wednesdays · Deployment Thursdays"
 }

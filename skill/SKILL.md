@@ -24,7 +24,13 @@ and posting off-schedule.
 Each card carries a 1200x628 banner plus the current open pull requests in
 `nrgmr/research-platform-ui`, labelled **Draft** or **Open**, drafts first.
 
-Copy lives in `announcements.json`. Edit there, never in the scripts.
+Copy lives in `announcements.json`. Edit there, never in the scripts. Each day also
+carries an `emoji`, a bold `hype` lead, and a `checklist` of emoji reminders; `mention`
+and `footer` are top-level.
+
+`mention` renders as `📢 @everyone` but **notifies nobody** — Adaptive Cards support only
+specific-user mentions via AAD IDs, and channel-wide mentions are not available over an
+incoming webhook. Do not let anyone assume it pings the team.
 
 ## Commands
 

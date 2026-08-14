@@ -34,7 +34,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 CONFIG = json.loads((REPO_ROOT / "announcements.json").read_text(encoding="utf-8"))
 
 # Teams caps the card payload; keep the PR list from growing without bound.
-MAX_PRS_SHOWN = 15
+MAX_PRS_SHOWN = 10
 HTTP_TIMEOUT = 30
 
 
@@ -129,74 +129,122 @@ def build_card(day: str, prs: list[dict], pr_error: str | None) -> dict:
             "size": "Stretch",
             "altText": f"{day}: {cfg['title']}",
         },
-        {
-            "type": "TextBlock",
-            "text": cfg["title"],
-            "weight": "Bolder",
-            "size": "Large",
-            "wrap": True,
-            "spacing": "Medium",
-        },
-        {
-            "type": "TextBlock",
-            "text": cfg["description"],
-            "wrap": True,
-            "isSubtle": True,
-            "spacing": "Small",
-        },
     ]
 
-    repo = CONFIG["pr_repo"]
-    if pr_error:
+    # Decoration only. Adaptive Cards can mention specific users via
+    # msteams.entities, but there is no channel-wide mention over an incoming
+    # webhook, so this renders as text and notifies nobody.
+    mention = CONFIG.get("mention")
+    if mention:
         body.append({
             "type": "TextBlock",
-            "text": f"_Open pull requests unavailable: {pr_error}._",
+            "text": f"📢 **{mention}**",
+            "wrap": True,
+            "spacing": "Medium",
+        })
+
+    emoji = cfg.get("emoji", "")
+    headline = f"{emoji} {cfg['title'].upper()}".strip()
+    body.append({
+        "type": "TextBlock",
+        "text": headline,
+        "weight": "Bolder",
+        "size": "Large",
+        "wrap": True,
+        "spacing": "Small",
+    })
+
+    hype = cfg.get("hype")
+    lead = f"**{hype}** {cfg['description']}" if hype else cfg["description"]
+    body.append({
+        "type": "TextBlock",
+        "text": lead,
+        "wrap": True,
+        "spacing": "Small",
+    })
+
+    for item in cfg.get("checklist", []):
+        body.append({
+            "type": "TextBlock",
+            "text": item,
+            "wrap": True,
+            "spacing": "Small",
+        })
+
+    body.extend(_pr_section(prs, pr_error))
+
+    footer = CONFIG.get("footer")
+    if footer:
+        body.append({
+            "type": "TextBlock",
+            "text": f"_{footer}_",
+            "wrap": True,
+            "isSubtle": True,
+            "size": "Small",
+            "spacing": "Medium",
+            "separator": True,
+        })
+
+    return envelope(body, day, cfg)
+
+
+# Draft PRs are the ones at risk for the cut, so they get the attention-seeking
+# marker; everything else is simply awaiting eyes.
+STATUS_EMOJI = {"Draft": "🚧", "Open": "👀"}
+
+
+def _pr_section(prs: list[dict], pr_error: str | None) -> list[dict]:
+    repo = CONFIG["pr_repo"]
+    if pr_error:
+        return [{
+            "type": "TextBlock",
+            "text": f"⚠️ _Open pull requests unavailable: {pr_error}._",
             "wrap": True,
             "isSubtle": True,
             "spacing": "Medium",
-        })
-        return envelope(body, day, cfg)
+            "separator": True,
+        }]
 
     drafts = sum(1 for p in prs if p["status"] == "Draft")
     ready = len(prs) - drafts
-    body.append({
+    blocks = [{
         "type": "TextBlock",
-        "text": f"Open pull requests in {repo} — {ready} open, {drafts} draft",
-        "weight": "Bolder",
+        "text": f"🔀 **Still open in {repo.split('/')[-1]}** — 👀 {ready} open · 🚧 {drafts} draft",
         "wrap": True,
         "spacing": "Medium",
         "separator": True,
-    })
+    }]
 
     if not prs:
-        body.append({
+        blocks.append({
             "type": "TextBlock",
-            "text": "Nothing open. The board is clear.",
+            "text": "🎉 Nothing open. The board is clear.",
+            "wrap": True,
+            "spacing": "Small",
+        })
+        return blocks
+
+    for pr in prs[:MAX_PRS_SHOWN]:
+        title = pr["title"]
+        if len(title) > 90:
+            title = title[:87].rstrip() + "…"
+        marker = STATUS_EMOJI.get(pr["status"], "•")
+        blocks.append({
+            "type": "TextBlock",
+            "text": f"{marker} [#{pr['number']}]({pr['url']}) {title} — _{pr['author']}_",
+            "wrap": True,
+            "spacing": "Small",
+        })
+
+    if len(prs) > MAX_PRS_SHOWN:
+        blocks.append({
+            "type": "TextBlock",
+            "text": f"➕ _…and {len(prs) - MAX_PRS_SHOWN} more._",
             "wrap": True,
             "isSubtle": True,
             "spacing": "Small",
         })
-    else:
-        for pr in prs[:MAX_PRS_SHOWN]:
-            title = pr["title"]
-            if len(title) > 90:
-                title = title[:87].rstrip() + "…"
-            body.append({
-                "type": "TextBlock",
-                "text": f"**{pr['status']}** · [#{pr['number']}]({pr['url']}) {title} — _{pr['author']}_",
-                "wrap": True,
-                "spacing": "Small",
-            })
-        if len(prs) > MAX_PRS_SHOWN:
-            body.append({
-                "type": "TextBlock",
-                "text": f"_…and {len(prs) - MAX_PRS_SHOWN} more._",
-                "wrap": True,
-                "isSubtle": True,
-                "spacing": "Small",
-            })
-
-    return envelope(body, day, cfg)
+    return blocks
 
 
 def envelope(body: list[dict], day: str, cfg: dict) -> dict:
@@ -220,7 +268,7 @@ def envelope(body: list[dict], day: str, cfg: dict) -> dict:
                     "actions": [
                         {
                             "type": "Action.OpenUrl",
-                            "title": f"Open {CONFIG['pr_repo'].split('/')[-1]} pull requests",
+                            "title": f"🔗 Open {CONFIG['pr_repo'].split('/')[-1]} pull requests",
                             "url": f"https://github.com/{CONFIG['pr_repo']}/pulls",
                         }
                     ],
