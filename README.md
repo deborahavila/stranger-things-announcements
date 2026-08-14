@@ -9,10 +9,10 @@ Each card carries a 1200x628 banner and the current open pull requests in
 
 | Day | Announcement |
 |---|---|
-| Monday | Prepare for Release Cut on Wednesday! |
-| Tuesday | Tomorrow is our Release Cut… |
-| Wednesday | Today is Release Cut Day! |
-| Thursday | Today is Deployment Day! |
+| Monday | Prepare for Release Cut... |
+| Tuesday | The Release Cut is tomorrow... |
+| Wednesday | Release Cut Day! |
+| Thursday | DEPLOYMENT DAY! |
 
 ## Why this repository is public
 
@@ -29,6 +29,7 @@ assets/*.png                    The four 1200x628 banners, served raw to Teams.
 scripts/post_announcement.py    Builds and posts the Adaptive Card.
 scripts/make_art.py             Regenerates the banners from the source stills.
 skill/SKILL.md                  Claude Code skill for previewing and posting manually.
+brand/nrg-logo.{svg,png}        NRG mark, from design-system packages/ui/src/nrg-logo.tsx.
 .github/workflows/announce.yml  The 7am Pacific schedule.
 ```
 
@@ -80,7 +81,8 @@ python3 scripts/post_announcement.py
 
 `scripts/make_art.py` downloads the source stills and composites the banners using the
 NRG NEXT Design System palette (`#4c003e` purple, `#89119f` bright purple, `#ff4d42` red,
-`#ffe21a` yellow) with Messina Sans for body copy and Bodoni 72 Bold as the display face.
+`#ffe21a` yellow) with Messina Sans for body copy and Impact as the heavy condensed display
+face. The NRG mark in `brand/` is rasterised from the design system's `nrg-logo.tsx`.
 
 Requires Python 3 with Pillow, and Messina Sans installed locally as OTF:
 

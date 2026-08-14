@@ -16,10 +16,10 @@ and posting off-schedule.
 
 | Day | Title | Description |
 |---|---|---|
-| Monday | Prepare for Release Cut on Wednesday! | Prepare your work, and have all possible reviews before going to Staging on Wednesday. |
-| Tuesday | Tomorrow is our Release Cut… | It's time to check if your work is really ready for Staging. |
-| Wednesday | Today is Release Cut Day! | The release cut will be made around 8pm PST. |
-| Thursday | Today is Deployment Day! | The production deployment will be made around 9pm PST. |
+| Monday | Prepare for Release Cut... | Prepare your work, and have all possible reviews before going to Staging on Wednesday. |
+| Tuesday | The Release Cut is tomorrow... | It's time to check if your work is really ready for Staging. |
+| Wednesday | Release Cut Day! | The release cut will be made around 8pm PST. |
+| Thursday | DEPLOYMENT DAY! | The production deployment will be made around 9pm PST. |
 
 Each card carries a 1200x628 banner plus the current open pull requests in
 `nrgmr/research-platform-ui`, labelled **Draft** or **Open**, drafts first.
@@ -60,6 +60,9 @@ gh workflow run announce.yml -f force_day=Wednesday -f dry_run=false
 ### art
 Rebuild the four banners after changing copy, imagery, or styling. Requires Pillow and
 the Messina Sans OTFs installed locally; it downloads the source stills itself.
+
+The source-image cache is keyed on the URL, so swapping an image in
+`announcements.json` re-downloads rather than reusing a stale file.
 
 ```bash
 python3 scripts/make_art.py

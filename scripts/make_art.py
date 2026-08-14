@@ -5,6 +5,7 @@ Output: 1200x628 PNG per weekday, styled with the NRG NEXT Design System
 palette (brand purple / yellow / red) over a Stranger Things still.
 """
 
+import hashlib
 import json
 import tempfile
 import urllib.request
@@ -23,7 +24,7 @@ NRG_BLACK = (0x04, 0x0A, 0x12)
 WHITE = (0xFF, 0xFF, 0xFF)
 
 # --- Fonts ----------------------------------------------------------------
-F_TITLE = ("/System/Library/Fonts/Supplemental/Bodoni 72.ttc", 2)  # Benguiat stand-in
+F_TITLE = ("/System/Library/Fonts/Supplemental/Impact.ttf", None)  # heavy condensed poster face
 F_SANS_B = ("/Users/dehbair/Library/Fonts/MessinaSans-Bold.otf", None)
 F_SANS_R = ("/Users/dehbair/Library/Fonts/MessinaSans-Regular.otf", None)
 
@@ -215,16 +216,16 @@ def build(day, src, title, desc, out):
 
     # --- Title ------------------------------------------------------------
     max_text_w = W - MARGIN * 2 - 40
-    size = 78
+    size = 96
     while size > 40:
         f_title = font(F_TITLE, size)
-        lines = balanced_wrap(title.upper(), f_title, max_text_w, tracking=1.5)
+        lines = balanced_wrap(title.upper(), f_title, max_text_w, tracking=2.5)
         if len(lines) <= 2:
             break
-        size -= 4
+        size -= 5
     f_title = font(F_TITLE, size)
-    lines = balanced_wrap(title.upper(), f_title, max_text_w, tracking=1.5)
-    line_h = int(size * 1.13)
+    lines = balanced_wrap(title.upper(), f_title, max_text_w, tracking=2.5)
+    line_h = int(size * 1.02)
 
     f_desc = font(F_SANS_R, 23)
     desc_lines = wrap(desc, f_desc, max_text_w - 30)
@@ -234,7 +235,7 @@ def build(day, src, title, desc, out):
     title_y = H - MARGIN - 26 - block_h
 
     glow_text(canvas, lines, f_title, MARGIN, title_y, line_h,
-              NRG_RED, tracking=1.5, glow_radius=20, glow_passes=3)
+              NRG_RED, tracking=2.5, glow_radius=20, glow_passes=3)
 
     # --- Description ------------------------------------------------------
     d = ImageDraw.Draw(canvas)
@@ -257,12 +258,19 @@ def build(day, src, title, desc, out):
         bd.rectangle([cx, 0, W, bar_h], fill=NRG_YELLOW + (255,))
     canvas.alpha_composite(bar, (0, H - bar_h))
 
-    # --- NRG wordmark, top right -----------------------------------------
-    f_mark = font(F_SANS_B, 21)
-    mark = "NRG"
-    mw = track_width(mark, f_mark, 3)
-    d = ImageDraw.Draw(canvas)
-    track_text(d, (W - MARGIN - mw, MARGIN - 6), mark, f_mark, WHITE + (235,), tracking=3)
+    # --- NRG logo, top right ---------------------------------------------
+    logo_path = REPO_ROOT / CONFIG.get("logo", "brand/nrg-logo.png")
+    if logo_path.exists():
+        with Image.open(logo_path) as raw:
+            logo = raw.convert("RGBA")
+        target_h = 38
+        logo = logo.resize((round(logo.width * target_h / logo.height), target_h), Image.LANCZOS)
+        # Slight knock-back so the mark sits in the image rather than on top of it.
+        alpha = logo.getchannel("A").point(lambda v: int(v * 0.93))
+        logo.putalpha(alpha)
+        canvas.alpha_composite(logo, (W - MARGIN - logo.width, MARGIN - 14))
+    else:
+        print(f"  warning: logo missing at {logo_path}; skipping the mark.")
 
     canvas.convert("RGB").save(out, "PNG", optimize=True)
     print(f"{out}  {size}px title, {len(lines)} line(s), {len(desc_lines)} desc line(s)")
@@ -291,7 +299,10 @@ if __name__ == "__main__":
     cache.mkdir(exist_ok=True)
 
     for day, cfg in CONFIG["days"].items():
-        src_path = fetch(cfg["source_image"], cache / f"{day.lower()}.jpg")
+        # Key the cache on the URL, not the weekday, so swapping a source
+        # image actually re-downloads instead of reusing the stale file.
+        digest = hashlib.sha256(cfg["source_image"].encode("utf-8")).hexdigest()[:16]
+        src_path = fetch(cfg["source_image"], cache / f"{day.lower()}-{digest}.jpg")
         with Image.open(src_path) as probe:
             if probe.size[0] < W or probe.size[1] < H:
                 print(f"  note: {day} source is {probe.size[0]}x{probe.size[1]}, "
