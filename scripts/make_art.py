@@ -84,7 +84,7 @@ def linear_gradient(size, stops, horizontal=False):
     return g.resize((w, h), Image.BILINEAR)
 
 
-def vignette(size, strength=118):
+def vignette(size, strength=96):
     w, h = size
     m = Image.new("L", (w, h), 0)
     d = ImageDraw.Draw(m)
@@ -159,29 +159,36 @@ def balanced_wrap(text, fnt, max_w, tracking=0):
 
 
 def glow_text(base, lines, fnt, x, y, line_h, colour, tracking=0,
-              glow_colour=None, glow_radius=18, glow_passes=3):
-    """Neon title: blurred coloured glow underneath, crisp text on top."""
+              glow_colour=None, glow_radius=30, glow_opacity=0.30,
+              shadow_opacity=0.28, shadow_offset=4):
+    """Title with a soft halo and a gentle drop shadow, crisp text on top.
+
+    The halo is one wide, low-opacity pass rather than several stacked ones,
+    which reads as ambient light instead of a hard neon rim.
+    """
     glow_colour = glow_colour or colour
-    layer = Image.new("RGBA", base.size, (0, 0, 0, 0))
-    ld = ImageDraw.Draw(layer)
-    cy = y
-    for ln in lines:
-        track_text(ld, (x, cy), ln, fnt, glow_colour + (255,), tracking)
-        cy += line_h
 
-    glow = layer.filter(ImageFilter.GaussianBlur(glow_radius))
-    for _ in range(glow_passes):
-        base.alpha_composite(glow)
-    # tight inner halo
-    base.alpha_composite(layer.filter(ImageFilter.GaussianBlur(glow_radius / 4)))
+    def render(colour_rgba, blur=0, offset=(0, 0)):
+        layer = Image.new("RGBA", base.size, (0, 0, 0, 0))
+        ld = ImageDraw.Draw(layer)
+        cy = y + offset[1]
+        for ln in lines:
+            track_text(ld, (x + offset[0], cy), ln, fnt, colour_rgba, tracking)
+            cy += line_h
+        return layer.filter(ImageFilter.GaussianBlur(blur)) if blur else layer
 
-    sharp = Image.new("RGBA", base.size, (0, 0, 0, 0))
-    sd = ImageDraw.Draw(sharp)
-    cy = y
-    for ln in lines:
-        track_text(sd, (x, cy), ln, fnt, colour + (255,), tracking)
-        cy += line_h
-    base.alpha_composite(sharp)
+    # Soft dark shadow for separation from the photograph.
+    if shadow_opacity > 0:
+        shadow = render((0, 0, 0, round(255 * shadow_opacity)), blur=14,
+                        offset=(shadow_offset, shadow_offset))
+        base.alpha_composite(shadow)
+
+    # Wide ambient halo.
+    if glow_opacity > 0:
+        base.alpha_composite(render(glow_colour + (round(255 * glow_opacity),),
+                                    blur=glow_radius))
+
+    base.alpha_composite(render(colour + (255,)))
 
 
 def build(day, src, title, desc, out):
@@ -201,11 +208,11 @@ def build(day, src, title, desc, out):
 
     # Darken bottom-left so the type has a bed to sit on
     shade = Image.new("RGBA", (W, H), NRG_BLACK + (255,))
-    shade.putalpha(linear_gradient((W, H), [(0.0, 8), (0.45, 52), (1.0, 214)]))
+    shade.putalpha(linear_gradient((W, H), [(0.0, 6), (0.42, 40), (1.0, 178)]))
     canvas.alpha_composite(shade)
 
     side = Image.new("RGBA", (W, H), NRG_BLACK + (255,))
-    side.putalpha(linear_gradient((W, H), [(0.0, 105), (0.62, 22), (1.0, 0)], horizontal=True))
+    side.putalpha(linear_gradient((W, H), [(0.0, 84), (0.62, 16), (1.0, 0)], horizontal=True))
     canvas.alpha_composite(side)
 
     # Vignette + grain
@@ -262,7 +269,7 @@ def build(day, src, title, desc, out):
     title_y = desc_baseline - gap - ink_bottom
 
     glow_text(canvas, lines, f_title, MARGIN, title_y, line_h,
-              NRG_RED, tracking=2.5, glow_radius=20, glow_passes=3)
+              NRG_RED, tracking=2.5)
 
     # --- Description ------------------------------------------------------
     d = ImageDraw.Draw(canvas)
