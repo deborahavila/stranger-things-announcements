@@ -1,0 +1,32 @@
+{
+  "channel": "Test Channel - More coming up!",
+  "team": "Stranger Things",
+  "pr_repo": "nrgmr/research-platform-ui",
+  "asset_base": "https://raw.githubusercontent.com/{owner_repo}/{ref}/assets",
+  "days": {
+    "Monday": {
+      "title": "Prepare for Release Cut on Wednesday!",
+      "description": "Prepare your work, and have all possible reviews before going to Staging on Wednesday.",
+      "asset": "monday.png",
+      "source_image": "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgi_2L2QTHhJSQiCaeCcQG7xvHIrae-GrFXM-2m27dXatpAZzxbaHU-2YYJ9huRE7smeyyLAJColChnUQBfkWMofKNZEABHWh4hrS6UgKuw4n24F2lu-VSv2Ng-VNrhAbs6MAVTL_K4xNBR/s1600/stranger+9.jpeg"
+    },
+    "Tuesday": {
+      "title": "Tomorrow is our Release Cut…",
+      "description": "It’s time to check if your work is really ready for Staging.",
+      "asset": "tuesday.png",
+      "source_image": "https://static0.srcdn.com/wordpress/wp-content/uploads/2022/07/Stranger-Things-David-Harbour-Sword-Hopper.jpg"
+    },
+    "Wednesday": {
+      "title": "Today is Release Cut Day!",
+      "description": "The release cut will be made around 8pm PST.",
+      "asset": "wednesday.png",
+      "source_image": "https://static0.srcdn.com/wordpress/wp-content/uploads/2022/04/stranger-things-season-4-max-flying-billy-grave-lucas-steve-dustin.jpg?w=1600&h=900&fit=crop"
+    },
+    "Thursday": {
+      "title": "Today is Deployment Day!",
+      "description": "The production deployment will be made around 9pm PST.",
+      "asset": "thursday.png",
+      "source_image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTqzARqrNZ2tTrnzy76ztn8HwngiidoRWHA5FB-pXLTO4xxxE0GVO07_IxP&s=10"
+    }
+  }
+}
