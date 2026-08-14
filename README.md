@@ -106,9 +106,12 @@ different handling:
 | `zoom` | `1.0` | Push in on the subject. `1.5` crops to two-thirds of the frame. |
 | `focus` | `[0.5, 0.5]` | Normalised point to keep centred. Clamped so the crop stays in bounds. |
 | `punch` | `0.0` | Extra contrast and saturation for flat frames. |
+| `saturation` | `0.72` | Global desaturation. Raise to `1.0` for frames that are already strongly graded. |
+| `wash` | `48` | Alpha of the brand-purple wash. Set to `0` where it would muddy the source colour. |
 
-Thursday uses all three, because the Vecna still is a wide shot in which the figure
-would otherwise read as scenery rather than a subject.
+Thursday sets `saturation: 1.0` and `wash: 0` because it uses the official season 5 key
+art, which is already a deliberate deep red. The default grade would have desaturated it
+and pushed purple over the top, dulling exactly what makes that frame work.
 
 ## Image credits
 

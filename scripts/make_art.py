@@ -205,11 +205,13 @@ def glow_text(base, lines, fnt, x, y, line_h, colour, tracking=0,
     base.alpha_composite(render(colour + (255,)))
 
 
-def build(day, src, title, desc, out, zoom=1.0, focus=(0.5, 0.5), punch=0.0):
+def build(day, src, title, desc, out, zoom=1.0, focus=(0.5, 0.5), punch=0.0,
+          saturation=0.72, wash=48):
     photo = cover_crop(Image.open(src), W, H, zoom=zoom, focus=focus)
 
-    # Cool, desaturated, moody grade
-    photo = ImageEnhance.Color(photo).enhance(0.72)
+    # Cool, desaturated, moody grade. Frames that are already strongly graded
+    # (the red season 5 key art) override this so their colour survives.
+    photo = ImageEnhance.Color(photo).enhance(saturation)
     photo = ImageEnhance.Contrast(photo).enhance(1.10)
     photo = ImageEnhance.Brightness(photo).enhance(1.18)
     if punch:
@@ -219,9 +221,10 @@ def build(day, src, title, desc, out, zoom=1.0, focus=(0.5, 0.5), punch=0.0):
     canvas = photo.convert("RGBA")
 
     # Deep purple/black wash for the Upside Down feel
-    wash = Image.new("RGBA", (W, H), NRG_PURPLE + (255,))
-    wash.putalpha(48)
-    canvas.alpha_composite(wash)
+    if wash:
+        wash_layer = Image.new("RGBA", (W, H), NRG_PURPLE + (255,))
+        wash_layer.putalpha(wash)
+        canvas.alpha_composite(wash_layer)
 
     # Darken bottom-left so the type has a bed to sit on
     shade = Image.new("RGBA", (W, H), NRG_BLACK + (255,))
@@ -360,4 +363,6 @@ if __name__ == "__main__":
         build(day, src_path, cfg["title"], cfg["description"], out_dir / cfg["asset"],
               zoom=cfg.get("zoom", 1.0),
               focus=tuple(cfg.get("focus", (0.5, 0.5))),
-              punch=cfg.get("punch", 0.0))
+              punch=cfg.get("punch", 0.0),
+              saturation=cfg.get("saturation", 0.72),
+              wash=cfg.get("wash", 48))
