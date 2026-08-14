@@ -96,6 +96,20 @@ python3 scripts/make_art.py
 git add assets && git commit -m "chore: regenerate announcement banners"
 ```
 
+## Per-day framing
+
+Each entry in `announcements.json` accepts three optional keys for shots that need
+different handling:
+
+| Key | Default | Effect |
+|---|---|---|
+| `zoom` | `1.0` | Push in on the subject. `1.5` crops to two-thirds of the frame. |
+| `focus` | `[0.5, 0.5]` | Normalised point to keep centred. Clamped so the crop stays in bounds. |
+| `punch` | `0.0` | Extra contrast and saturation for flat frames. |
+
+Thursday uses all three, because the Vecna still is a wide shot in which the figure
+would otherwise read as scenery rather than a subject.
+
 ## Image credits
 
 Banner backgrounds are promotional stills from *Stranger Things* (Netflix), used for

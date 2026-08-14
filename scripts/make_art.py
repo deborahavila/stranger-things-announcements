@@ -49,14 +49,24 @@ def font(spec, size):
     return ImageFont.truetype(path, size, index=idx) if idx is not None else ImageFont.truetype(path, size)
 
 
-def cover_crop(im, w, h):
-    """Scale to fill w x h, centre-cropped, preserving aspect."""
+def cover_crop(im, w, h, zoom=1.0, focus=(0.5, 0.5)):
+    """Scale to fill w x h, preserving aspect.
+
+    zoom > 1 pushes in on the subject; focus is the normalised point of the
+    scaled image to keep centred, clamped so the crop stays in bounds.
+    """
     im = im.convert("RGB")
     sw, sh = im.size
-    scale = max(w / sw, h / sh)
+    scale = max(w / sw, h / sh) * zoom
     nw, nh = round(sw * scale), round(sh * scale)
     im = im.resize((nw, nh), Image.LANCZOS)
-    return im.crop(((nw - w) // 2, (nh - h) // 2, (nw - w) // 2 + w, (nh - h) // 2 + h))
+
+    fx, fy = focus
+    left = round(nw * fx - w / 2)
+    top = round(nh * fy - h / 2)
+    left = max(0, min(left, nw - w))
+    top = max(0, min(top, nh - h))
+    return im.crop((left, top, left + w, top + h))
 
 
 def linear_gradient(size, stops, horizontal=False):
@@ -195,13 +205,16 @@ def glow_text(base, lines, fnt, x, y, line_h, colour, tracking=0,
     base.alpha_composite(render(colour + (255,)))
 
 
-def build(day, src, title, desc, out):
-    photo = cover_crop(Image.open(src), W, H)
+def build(day, src, title, desc, out, zoom=1.0, focus=(0.5, 0.5), punch=0.0):
+    photo = cover_crop(Image.open(src), W, H, zoom=zoom, focus=focus)
 
     # Cool, desaturated, moody grade
     photo = ImageEnhance.Color(photo).enhance(0.72)
     photo = ImageEnhance.Contrast(photo).enhance(1.10)
     photo = ImageEnhance.Brightness(photo).enhance(1.18)
+    if punch:
+        photo = ImageEnhance.Contrast(photo).enhance(1 + punch)
+        photo = ImageEnhance.Color(photo).enhance(1 + punch * 0.6)
 
     canvas = photo.convert("RGBA")
 
@@ -344,4 +357,7 @@ if __name__ == "__main__":
             if probe.size[0] < W or probe.size[1] < H:
                 print(f"  note: {day} source is {probe.size[0]}x{probe.size[1]}, "
                       f"below {W}x{H}; the grade will mask the upscale.")
-        build(day, src_path, cfg["title"], cfg["description"], out_dir / cfg["asset"])
+        build(day, src_path, cfg["title"], cfg["description"], out_dir / cfg["asset"],
+              zoom=cfg.get("zoom", 1.0),
+              focus=tuple(cfg.get("focus", (0.5, 0.5))),
+              punch=cfg.get("punch", 0.0))

@@ -26,7 +26,13 @@
       "title": "DEPLOYMENT DAY!",
       "description": "The production deployment will be made around 9pm PST.",
       "asset": "thursday.png",
-      "source_image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTqzARqrNZ2tTrnzy76ztn8HwngiidoRWHA5FB-pXLTO4xxxE0GVO07_IxP&s=10"
+      "source_image": "https://static0.colliderimages.com/wordpress/wp-content/uploads/2022/06/stranger-things-season-4-vecna-jamie-cambell-bower-1.jpg",
+      "zoom": 1.5,
+      "focus": [
+        0.5,
+        0.42
+      ],
+      "punch": 0.14
     }
   },
   "logo": "brand/nrg-logo.png"
