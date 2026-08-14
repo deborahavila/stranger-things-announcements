@@ -38,6 +38,9 @@ from zoneinfo import ZoneInfo
 
 PACIFIC = ZoneInfo("America/Los_Angeles")
 POST_HOUR = 7
+# Weekday names follow LC_TIME when taken from strftime, but the config keys
+# are English, so a set locale would silently match nothing and never post.
+WEEKDAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CONFIG = json.loads((REPO_ROOT / "announcements.json").read_text(encoding="utf-8"))
 
@@ -57,7 +60,7 @@ def log(msg: str) -> None:
 def resolve_day() -> str | None:
     """Return the weekday name to post for, or None if we should stay quiet."""
     now = datetime.now(PACIFIC)
-    today = now.strftime("%A")
+    today = WEEKDAYS[now.weekday()]
 
     forced = os.environ.get("FORCE_DAY", "").strip()
     if forced:
@@ -155,26 +158,31 @@ def fetch_open_prs() -> tuple[list[dict], str | None]:
                 f"&per_page=100&page={page}",
                 token,
             )
+            if not isinstance(batch, list):
+                return [], "unexpected GitHub response (not a list of pull requests)"
             raw.extend(batch)
             if len(batch) < 100:
                 break
         else:
-            log(f"Stopped after {MAX_PR_PAGES} pages ({len(raw)} PRs); there may be more.")
+            log(f"Reached the {MAX_PR_PAGES}-page cap at {len(raw)} PRs; there may be more.")
+
+        # Shaping stays inside the try. An unexpected payload shape must degrade
+        # to "no PR section" like any other API failure, never kill the post.
+        prs = [
+            {
+                "number": pr["number"],
+                "title": pr["title"],
+                "url": pr["html_url"],
+                "author": (pr.get("user") or {}).get("login", "unknown"),
+                "status": "Draft" if pr.get("draft") else "Open",
+            }
+            for pr in raw
+        ]
     except urllib.error.HTTPError as exc:
         return [], f"GitHub API returned HTTP {exc.code} for {repo}"
     except Exception as exc:  # noqa: BLE001 - degrade gracefully, never block the post
-        return [], f"GitHub API call failed: {exc}"
+        return [], f"GitHub API call failed: {type(exc).__name__}: {exc}"
 
-    prs = [
-        {
-            "number": pr["number"],
-            "title": pr["title"],
-            "url": pr["html_url"],
-            "author": (pr.get("user") or {}).get("login", "unknown"),
-            "status": "Draft" if pr.get("draft") else "Open",
-        }
-        for pr in raw
-    ]
     # Drafts first: those are the ones at risk for the cut.
     prs.sort(key=lambda p: (p["status"] != "Draft", -p["number"]))
     return prs, None
@@ -184,7 +192,11 @@ def asset_url(asset: str) -> str:
     owner_repo = os.environ.get("GITHUB_REPOSITORY", "").strip()
     ref = os.environ.get("ASSET_REF", "").strip() or "main"
     if not owner_repo:
-        # Local preview outside Actions.
+        # Local preview only. Teams fetches images server-side and cannot read a
+        # file:// URL, so refuse rather than post a card with a broken image.
+        if os.environ.get("DRY_RUN") != "1":
+            sys.exit("GITHUB_REPOSITORY is not set, so the card image would be a local "
+                     "file:// URL that Teams cannot fetch. Set it, or use DRY_RUN=1.")
         return str((REPO_ROOT / "assets" / asset).as_uri())
     return CONFIG["asset_base"].format(owner_repo=owner_repo, ref=ref) + f"/{asset}"
 
@@ -330,6 +342,8 @@ def trim_to_fit(payload: dict) -> dict:
     body = payload["attachments"][0]["content"]["body"]
     pr_indexes = [i for i, b in enumerate(body) if is_pr_line(b)]
     if not pr_indexes:
+        log(f"Card is {len(json.dumps(payload).encode()):,} bytes with no PR lines "
+            f"to drop; Teams may reject it.")
         return payload
 
     first_pr = pr_indexes[0]
@@ -402,13 +416,15 @@ def post(payload: dict) -> None:
 
     data = json.dumps(payload).encode("utf-8")
     log(f"Payload is {len(data):,} bytes.")
-    req = urllib.request.Request(
-        webhook,
-        data=data,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
     try:
+        # Request() itself raises ValueError on a URL with no scheme, so it has
+        # to be constructed inside the guard rather than above it.
+        req = urllib.request.Request(
+            webhook,
+            data=data,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
         with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as resp:
             # 202 means Power Automate accepted the request, NOT that the card
             # rendered. A malformed payload still fails later inside the flow
@@ -416,10 +432,11 @@ def post(payload: dict) -> None:
             log(f"Teams accepted the card: HTTP {resp.status}.")
     except urllib.error.HTTPError as exc:
         sys.exit(f"Teams rejected the card: HTTP {exc.code} — {exc.read().decode('utf-8', 'replace')[:500]}")
-    except (urllib.error.URLError, OSError) as exc:
+    except (urllib.error.URLError, OSError, ValueError) as exc:
         # An unreachable or misconfigured webhook should read as a clear failure
-        # in the Actions log, not a traceback.
-        sys.exit(f"Could not reach the Teams webhook: {exc}")
+        # in the Actions log, not a traceback. ValueError covers a URL with no
+        # scheme, which Request() rejects before any network call happens.
+        sys.exit(f"Could not reach the Teams webhook: {type(exc).__name__}: {exc}")
 
 
 def main() -> None:

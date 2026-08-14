@@ -54,8 +54,11 @@ jobs:
           # half-updated banner mid-deploy.
           ASSET_REF: ${{ github.sha }}
           FORCE_DAY: ${{ inputs.force_day }}
-          DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
-          ALLOW_OFF_DAY: ${{ inputs.allow_off_day && '1' || '' }}
+          # -f submits strings, so match both the boolean and the string form.
+          # Fails safe: anything unrecognised is treated as a dry run.
+          DRY_RUN: ${{ (inputs.dry_run == false || inputs.dry_run == 'false') && '' || '1' }}
+          # Fails safe: only an explicit true permits an off-day post.
+          ALLOW_OFF_DAY: ${{ (inputs.allow_off_day == true || inputs.allow_off_day == 'true') && '1' || '' }}
           # Identifies which of the two DST crons fired. Empty on manual runs.
           SCHEDULE_CRON: ${{ github.event.schedule }}
         run: python scripts/post_announcement.py

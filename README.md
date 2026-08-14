@@ -65,6 +65,13 @@ One skipped run per day in the Actions log is expected and correct.
 
 Manual dispatches carry no `SCHEDULE_CRON`, so they post today's card at any hour.
 
+### ⚠️ GitHub disables idle scheduled workflows
+
+GitHub turns off scheduled workflows after **60 days with no repository activity**. This
+repo is otherwise idle — the banners rarely change — so the Monday–Thursday post will
+eventually stop on its own. GitHub emails the repo owner first, and any push (or re-enabling
+the workflow from the Actions tab) resets the clock.
+
 ## Manual runs
 
 ```bash
@@ -97,8 +104,10 @@ with its OFL licence so the art regenerates identically anywhere. Body copy uses
 Sans when installed locally, falling back to Helvetica Neue. The NRG mark in `brand/` is
 rasterised from the design system's `nrg-logo.tsx`.
 
-Requires Python 3 with Pillow. Anton SC is vendored, so only the optional Messina Sans
-body face depends on local installation:
+Requires Python 3 with Pillow. Anton SC is vendored, so the titles render identically
+anywhere. The body face falls back Messina Sans → Helvetica Neue (macOS) → DejaVu Sans
+(Linux) → Pillow's built-in default, so the script runs on a fresh checkout on any platform,
+though only a machine with Messina Sans installed reproduces the committed banners exactly:
 
 ```bash
 python3 -m pip install --upgrade Pillow

@@ -31,21 +31,43 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 F_TITLE = (str(REPO_ROOT / "brand" / "fonts" / "AntonSC-Regular.ttf"), None)
 
 # Messina Sans is the NEXT Design System body face. It is licensed, so it is not
-# vendored; the local OTFs are used when present and Helvetica stands in if not.
+# vendored. Candidates are tried in order and the first that exists wins, so this
+# still runs on a Linux checkout where neither Messina nor Helvetica is present.
 _MESSINA = Path("/Users/dehbair/Library/Fonts")
-_HELVETICA = "/System/Library/Fonts/HelveticaNeue.ttc"
-if (_MESSINA / "MessinaSans-Bold.otf").exists():
-    F_SANS_B = (str(_MESSINA / "MessinaSans-Bold.otf"), None)
-    F_SANS_R = (str(_MESSINA / "MessinaSans-Regular.otf"), None)
-else:
-    F_SANS_B = (_HELVETICA, 1)
-    F_SANS_R = (_HELVETICA, 0)
+
+_SANS_BOLD_CANDIDATES = [
+    (_MESSINA / "MessinaSans-Bold.otf", None),
+    (Path("/System/Library/Fonts/HelveticaNeue.ttc"), 1),          # macOS
+    (Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"), None),  # Debian/Ubuntu
+    (Path("/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf"), None),   # Fedora
+]
+_SANS_REGULAR_CANDIDATES = [
+    (_MESSINA / "MessinaSans-Regular.otf", None),
+    (Path("/System/Library/Fonts/HelveticaNeue.ttc"), 0),
+    (Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"), None),
+    (Path("/usr/share/fonts/dejavu/DejaVuSans.ttf"), None),
+]
+
+
+def _pick_font(candidates, label):
+    for path, idx in candidates:
+        if path.exists():
+            return (str(path), idx)
+    # Pillow's built-in bitmap face: ugly, but it renders rather than crashing.
+    print(f"  warning: no {label} font found; falling back to Pillow's default.")
+    return (None, None)
+
+
+F_SANS_B = _pick_font(_SANS_BOLD_CANDIDATES, "bold sans")
+F_SANS_R = _pick_font(_SANS_REGULAR_CANDIDATES, "regular sans")
 
 MARGIN = 72
 
 
 def font(spec, size):
     path, idx = spec
+    if path is None:
+        return ImageFont.load_default(size)
     return ImageFont.truetype(path, size, index=idx) if idx is not None else ImageFont.truetype(path, size)
 
 
@@ -57,6 +79,9 @@ def cover_crop(im, w, h, zoom=1.0, focus=(0.5, 0.5)):
     """
     im = im.convert("RGB")
     sw, sh = im.size
+    # zoom is "push in"; below 1.0 the crop box would fall outside the scaled
+    # image and PIL pads the difference with black instead of erroring.
+    zoom = max(float(zoom), 1.0)
     scale = max(w / sw, h / sh) * zoom
     nw, nh = round(sw * scale), round(sh * scale)
     im = im.resize((nw, nh), Image.LANCZOS)
@@ -110,7 +135,7 @@ def grain(size, sigma=11, opacity=32):
     return n.point(lambda v: int(abs(v - 128) * opacity / 128))
 
 
-def track_text(draw, xy, text, fnt, fill, tracking=0, anchor_ls=True):
+def track_text(draw, xy, text, fnt, fill, tracking=0):
     """Draw text with manual letter-spacing. Returns total advance width."""
     x, y = xy
     total = 0
@@ -260,7 +285,10 @@ def build(day, src, title, desc, out, zoom=1.0, focus=(0.5, 0.5), punch=0.0,
     while size > 40:
         f_title = font(F_TITLE, size)
         lines = balanced_wrap(title.upper(), f_title, max_text_w, tracking=2.5)
-        if len(lines) <= 2:
+        widest = max((track_width(ln, f_title, 2.5) for ln in lines), default=0)
+        # Shrink on width as well as line count: a single word longer than the
+        # column can never be wrapped and would otherwise run off the canvas.
+        if len(lines) <= 2 and widest <= max_text_w:
             break
         size -= 5
     f_title = font(F_TITLE, size)
@@ -287,6 +315,13 @@ def build(day, src, title, desc, out, zoom=1.0, focus=(0.5, 0.5), punch=0.0,
     # Seat the whole block against the bottom margin, working back from the ink.
     desc_baseline = H - MARGIN - 18 - desc_h
     title_y = desc_baseline - gap - ink_bottom
+
+    # Never let a long description drive the title up into the eyebrow rule.
+    min_title_y = MARGIN + 46 - ink_top
+    if title_y < min_title_y:
+        print(f"  warning: {day} copy is too tall; title clamped "
+              f"(needed y={title_y}, floor={min_title_y}).")
+        title_y = min_title_y
 
     glow_text(canvas, lines, f_title, MARGIN, title_y, line_h,
               NRG_RED, tracking=2.5)
@@ -336,13 +371,30 @@ UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
 
 
 def fetch(url, dest):
-    """Download a source still, reusing the cached copy when present."""
-    if dest.exists() and dest.stat().st_size > 0:
+    """Download a source still, reusing the cached copy when present.
+
+    Three of the four sources are third-party hotlinks. A 403 or an HTML error
+    body would otherwise be cached as a .jpg and reused on every later run, so
+    the download is verified as a real image before it is kept.
+    """
+    if dest.exists() and dest.stat().st_size > 0 and _is_image(dest):
         return dest
     req = urllib.request.Request(url, headers={"User-Agent": UA})
     with urllib.request.urlopen(req, timeout=60) as resp:
         dest.write_bytes(resp.read())
+    if not _is_image(dest):
+        dest.unlink(missing_ok=True)
+        raise SystemExit(f"{url} did not return a usable image (hotlink blocked?).")
     return dest
+
+
+def _is_image(path):
+    try:
+        with Image.open(path) as im:
+            im.verify()
+        return True
+    except Exception:
+        return False
 
 
 if __name__ == "__main__":
