@@ -159,8 +159,8 @@ def balanced_wrap(text, fnt, max_w, tracking=0):
 
 
 def glow_text(base, lines, fnt, x, y, line_h, colour, tracking=0,
-              glow_colour=None, glow_radius=30, glow_opacity=0.30,
-              shadow_opacity=0.28, shadow_offset=4):
+              glow_colour=None, glow_radius=26, glow_opacity=0.50,
+              glow_core_opacity=0.28, shadow_opacity=0.26, shadow_offset=4):
     """Title with a soft halo and a gentle drop shadow, crisp text on top.
 
     The halo is one wide, low-opacity pass rather than several stacked ones,
@@ -183,10 +183,14 @@ def glow_text(base, lines, fnt, x, y, line_h, colour, tracking=0,
                         offset=(shadow_offset, shadow_offset))
         base.alpha_composite(shadow)
 
-    # Wide ambient halo.
+    # Wide ambient halo, then a tighter core so the red reads as light coming
+    # off the letters rather than a flat wash behind them.
     if glow_opacity > 0:
         base.alpha_composite(render(glow_colour + (round(255 * glow_opacity),),
                                     blur=glow_radius))
+    if glow_core_opacity > 0:
+        base.alpha_composite(render(glow_colour + (round(255 * glow_core_opacity),),
+                                    blur=max(glow_radius // 4, 2)))
 
     base.alpha_composite(render(colour + (255,)))
 
