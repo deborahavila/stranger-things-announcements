@@ -9,7 +9,7 @@ Each card carries a 1200x628 banner and the current open pull requests in
 
 | Day | Announcement |
 |---|---|
-| Monday | Prepare for Release Cut... |
+| Monday | Be ready for the Release Cut... |
 | Tuesday | The Release Cut is tomorrow... |
 | Wednesday | Release Cut Day! |
 | Thursday | DEPLOYMENT DAY! |

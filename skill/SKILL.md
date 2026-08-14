@@ -16,7 +16,7 @@ and posting off-schedule.
 
 | Day | Title | Description |
 |---|---|---|
-| Monday | Prepare for Release Cut... | Prepare your work, and have all possible reviews before going to Staging on Wednesday. |
+| Monday | Be ready for the Release Cut... | Prepare your work, and have all possible reviews before going to Staging on Wednesday. |
 | Tuesday | The Release Cut is tomorrow... | It's time to check if your work is really ready for Staging. |
 | Wednesday | Release Cut Day! | The release cut will be made around 8pm PST. |
 | Thursday | DEPLOYMENT DAY! | The production deployment will be made around 9pm PST. |
