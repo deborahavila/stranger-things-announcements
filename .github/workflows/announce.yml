@@ -56,4 +56,6 @@ jobs:
           FORCE_DAY: ${{ inputs.force_day }}
           DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
           ALLOW_OFF_DAY: ${{ inputs.allow_off_day && '1' || '' }}
+          # Identifies which of the two DST crons fired. Empty on manual runs.
+          SCHEDULE_CRON: ${{ github.event.schedule }}
         run: python scripts/post_announcement.py

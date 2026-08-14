@@ -54,10 +54,16 @@ Without `GH_PAT` the card still posts, minus the pull request section.
 
 GitHub cron is UTC-only and does not follow US daylight saving, so a single cron entry
 would drift by an hour twice a year. The workflow instead fires at **both** 14:00 and
-15:00 UTC, and `post_announcement.py` checks the real Pacific hour and exits quietly
-unless it is 07:00.
+15:00 UTC, and `post_announcement.py` keeps whichever cron corresponds to 07:00 Pacific
+today.
+
+It decides from `github.event.schedule` — the cron that actually triggered the run — not
+from the wall clock. GitHub's scheduler is best-effort, and a run delayed past the hour
+boundary would otherwise skip the announcement for that day entirely, silently.
 
 One skipped run per day in the Actions log is expected and correct.
+
+Manual dispatches carry no `SCHEDULE_CRON`, so they post today's card at any hour.
 
 ## Manual runs
 

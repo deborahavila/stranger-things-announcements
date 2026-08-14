@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Post the daily release-cycle announcement to Microsoft Teams.
 
-Runs Monday-Thursday at 07:00 America/Los_Angeles. GitHub cron is UTC-only, so
-the workflow fires at both 14:00 and 15:00 UTC and this script gates on the
-actual Pacific hour -- that keeps the post at 7am local across DST changes.
+Runs Monday-Thursday at 07:00 America/Los_Angeles. GitHub cron is UTC-only and
+does not follow US daylight saving, so the workflow fires at both 14:00 and
+15:00 UTC and this script keeps whichever cron corresponds to 07:00 Pacific
+today. It decides from the triggering cron rather than the wall clock, because
+GitHub's scheduler is best-effort and a delayed run would otherwise be skipped.
 
 Environment:
   TEAMS_WEBHOOK_URL  (required)  Power Automate "when a webhook request is
@@ -13,6 +15,9 @@ Environment:
                                  section.
   GITHUB_REPOSITORY  (optional)  owner/repo, used to build raw asset URLs.
   ASSET_REF          (optional)  Branch or commit SHA for asset URLs.
+  SCHEDULE_CRON      (optional)  The cron expression that triggered a scheduled
+                                 run (github.event.schedule). Used to pick the
+                                 correct DST run without trusting the clock.
   FORCE_DAY          (optional)  Monday..Thursday. Previewing another day is
                                  always allowed; POSTING one out of step needs
                                  ALLOW_OFF_DAY=1.
@@ -40,6 +45,8 @@ CONFIG = json.loads((REPO_ROOT / "announcements.json").read_text(encoding="utf-8
 # the list is trimmed only as a last resort, to stop an unusually large day from
 # failing the post entirely. See trim_to_fit().
 MAX_PAYLOAD_BYTES = 24_000
+# Safety stop for pagination; 10 pages is 1000 open PRs.
+MAX_PR_PAGES = 10
 HTTP_TIMEOUT = 30
 
 
@@ -81,9 +88,35 @@ def resolve_day() -> str | None:
     if day not in CONFIG["days"]:
         log(f"{day} has no announcement configured. Nothing to do.")
         return None
-    if now.hour != POST_HOUR:
-        log(f"Hour is {now.hour}, not {POST_HOUR}. This is the off-DST duplicate run; skipping.")
+
+    schedule = os.environ.get("SCHEDULE_CRON", "").strip()
+    if not schedule:
+        # Manual run. Post today's card whatever the hour -- gating a manual
+        # dispatch on the clock would make it silently do nothing.
+        log("Manual run; posting today's announcement.")
+        return day
+
+    # Scheduled run. Two crons exist so that one of them is 07:00 Pacific in
+    # either DST state. Decide from the cron that actually triggered this run,
+    # NOT from the wall clock: GitHub's scheduler is best-effort, and a run
+    # delayed past the hour boundary would otherwise skip the day entirely.
+    offset_hours = int(now.utcoffset().total_seconds() // 3600)
+    intended_utc_hour = (POST_HOUR - offset_hours) % 24
+    try:
+        cron_utc_hour = int(schedule.split()[1])
+    except (IndexError, ValueError):
+        log(f"Could not parse SCHEDULE_CRON={schedule!r}; falling back to the hour check.")
+        if now.hour != POST_HOUR:
+            log(f"Pacific hour is {now.hour}, not {POST_HOUR}; skipping.")
+            return None
+        return day
+
+    if cron_utc_hour != intended_utc_hour:
+        log(f"Cron {schedule!r} is the {'PST' if intended_utc_hour == 14 else 'PDT'} "
+            f"duplicate today (07:00 Pacific is {intended_utc_hour:02d}:00 UTC); skipping.")
         return None
+
+    log(f"Cron {schedule!r} is today's 07:00 Pacific run.")
     return day
 
 
@@ -112,8 +145,21 @@ def fetch_open_prs() -> tuple[list[dict], str | None]:
         return [], "GH_PAT is not set"
 
     repo = CONFIG["pr_repo"]
+    raw: list[dict] = []
     try:
-        raw = gh_api(f"/repos/{repo}/pulls?state=open&sort=updated&direction=desc&per_page=100", token)
+        # Paginate: a single per_page=100 request would silently drop anything
+        # beyond the first hundred, and the card is meant to list every open PR.
+        for page in range(1, MAX_PR_PAGES + 1):
+            batch = gh_api(
+                f"/repos/{repo}/pulls?state=open&sort=updated&direction=desc"
+                f"&per_page=100&page={page}",
+                token,
+            )
+            raw.extend(batch)
+            if len(batch) < 100:
+                break
+        else:
+            log(f"Stopped after {MAX_PR_PAGES} pages ({len(raw)} PRs); there may be more.")
     except urllib.error.HTTPError as exc:
         return [], f"GitHub API returned HTTP {exc.code} for {repo}"
     except Exception as exc:  # noqa: BLE001 - degrade gracefully, never block the post
