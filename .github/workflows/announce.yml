@@ -20,6 +20,11 @@ on:
         required: false
         type: boolean
         default: true
+      allow_off_day:
+        description: "Permit posting a day's card on a different day (normally refused)"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -50,4 +55,5 @@ jobs:
           ASSET_REF: ${{ github.sha }}
           FORCE_DAY: ${{ inputs.force_day }}
           DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
+          ALLOW_OFF_DAY: ${{ inputs.allow_off_day && '1' || '' }}
         run: python scripts/post_announcement.py

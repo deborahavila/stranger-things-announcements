@@ -13,7 +13,10 @@ Environment:
                                  section.
   GITHUB_REPOSITORY  (optional)  owner/repo, used to build raw asset URLs.
   ASSET_REF          (optional)  Branch or commit SHA for asset URLs.
-  FORCE_DAY          (optional)  Monday..Thursday, bypasses the weekday gate.
+  FORCE_DAY          (optional)  Monday..Thursday. Previewing another day is
+                                 always allowed; POSTING one out of step needs
+                                 ALLOW_OFF_DAY=1.
+  ALLOW_OFF_DAY      (optional)  "1" permits posting a day's card on another day.
   DRY_RUN            (optional)  "1" prints the payload instead of posting.
 """
 
@@ -33,8 +36,10 @@ POST_HOUR = 7
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CONFIG = json.loads((REPO_ROOT / "announcements.json").read_text(encoding="utf-8"))
 
-# Teams caps the card payload; keep the PR list from growing without bound.
-MAX_PRS_SHOWN = 10
+# Every open PR is listed. Teams rejects cards beyond roughly 28KB outright, so
+# the list is trimmed only as a last resort, to stop an unusually large day from
+# failing the post entirely. See trim_to_fit().
+MAX_PAYLOAD_BYTES = 24_000
 HTTP_TIMEOUT = 30
 
 
@@ -44,15 +49,33 @@ def log(msg: str) -> None:
 
 def resolve_day() -> str | None:
     """Return the weekday name to post for, or None if we should stay quiet."""
+    now = datetime.now(PACIFIC)
+    today = now.strftime("%A")
+
     forced = os.environ.get("FORCE_DAY", "").strip()
     if forced:
         if forced not in CONFIG["days"]:
             sys.exit(f"FORCE_DAY={forced!r} is not one of {list(CONFIG['days'])}")
-        log(f"FORCE_DAY set; posting the {forced} announcement.")
+
+        # Each day's card belongs to that day. Previewing another day is fine,
+        # but posting one to the channel out of step -- a Wednesday card on a
+        # Friday -- misinforms the team about the release schedule.
+        off_day = forced != today
+        previewing = os.environ.get("DRY_RUN") == "1"
+        allowed = os.environ.get("ALLOW_OFF_DAY") == "1"
+        if off_day and not previewing and not allowed:
+            sys.exit(
+                f"Refusing to post the {forced} card on a {today}.\n"
+                f"Each day's announcement is only posted on that day.\n"
+                f"Use DRY_RUN=1 to preview it, or ALLOW_OFF_DAY=1 to override deliberately."
+            )
+        if off_day:
+            log(f"FORCE_DAY={forced} on a {today} ({'preview' if previewing else 'override'}).")
+        else:
+            log(f"FORCE_DAY set; posting the {forced} announcement.")
         return forced
 
-    now = datetime.now(PACIFIC)
-    day = now.strftime("%A")
+    day = today
     log(f"Pacific time is {now:%Y-%m-%d %H:%M %Z} ({day}).")
 
     if day not in CONFIG["days"]:
@@ -192,6 +215,16 @@ def build_card(day: str, prs: list[dict], pr_error: str | None) -> dict:
 # marker; everything else is simply awaiting eyes.
 STATUS_EMOJI = {"Draft": "🚧", "Open": "👀"}
 
+# Marks the block as a pull request entry. Do NOT identify these by their emoji
+# prefix: checklist items legitimately use the same emoji (Wednesday has
+# "👀 Watch for the release branch to appear"), and trimming would then be able
+# to delete announcement copy instead of a pull request.
+PR_LINK_MARKER = "/pull/"
+
+
+def is_pr_line(block: dict) -> bool:
+    return block.get("type") == "TextBlock" and PR_LINK_MARKER in block.get("text", "")
+
 
 def _pr_section(prs: list[dict], pr_error: str | None) -> list[dict]:
     repo = CONFIG["pr_repo"]
@@ -224,7 +257,7 @@ def _pr_section(prs: list[dict], pr_error: str | None) -> list[dict]:
         })
         return blocks
 
-    for pr in prs[:MAX_PRS_SHOWN]:
+    for pr in prs:
         title = pr["title"]
         if len(title) > 90:
             title = title[:87].rstrip() + "…"
@@ -236,15 +269,53 @@ def _pr_section(prs: list[dict], pr_error: str | None) -> list[dict]:
             "spacing": "Small",
         })
 
-    if len(prs) > MAX_PRS_SHOWN:
-        blocks.append({
+    return blocks
+
+
+def trim_to_fit(payload: dict) -> dict:
+    """Drop trailing PR lines only if the card would exceed the Teams limit.
+
+    Teams rejects oversized cards outright, so an unusually busy day would
+    otherwise lose the entire announcement rather than a few list entries.
+    """
+    if len(json.dumps(payload).encode("utf-8")) <= MAX_PAYLOAD_BYTES:
+        return payload
+
+    body = payload["attachments"][0]["content"]["body"]
+    pr_indexes = [i for i, b in enumerate(body) if is_pr_line(b)]
+    if not pr_indexes:
+        return payload
+
+    first_pr = pr_indexes[0]
+
+    def note(count: int) -> dict:
+        return {
             "type": "TextBlock",
-            "text": f"➕ _…and {len(prs) - MAX_PRS_SHOWN} more._",
+            "text": f"➕ _{count} more not shown — the card hit the Teams size limit._",
             "wrap": True,
             "isSubtle": True,
             "spacing": "Small",
-        })
-    return blocks
+        }
+
+    def size() -> int:
+        return len(json.dumps(payload).encode("utf-8"))
+
+    # The note itself costs bytes, so it has to be measured as part of each
+    # candidate rather than appended once trimming is already finished.
+    dropped = 0
+    while pr_indexes:
+        body.pop(pr_indexes.pop())
+        dropped += 1
+        insert_at = (pr_indexes[-1] + 1) if pr_indexes else first_pr
+        body.insert(insert_at, note(dropped))
+        if size() <= MAX_PAYLOAD_BYTES:
+            log(f"Card exceeded {MAX_PAYLOAD_BYTES:,} bytes; trimmed {dropped} PR line(s).")
+            return payload
+        body.pop(insert_at)
+
+    log(f"Card still over {MAX_PAYLOAD_BYTES:,} bytes with every PR line removed.")
+    body.insert(first_pr, note(dropped))
+    return payload
 
 
 def envelope(body: list[dict], day: str, cfg: dict) -> dict:
@@ -293,9 +364,16 @@ def post(payload: dict) -> None:
     )
     try:
         with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as resp:
+            # 202 means Power Automate accepted the request, NOT that the card
+            # rendered. A malformed payload still fails later inside the flow
+            # run, so check the flow history when a post does not appear.
             log(f"Teams accepted the card: HTTP {resp.status}.")
     except urllib.error.HTTPError as exc:
         sys.exit(f"Teams rejected the card: HTTP {exc.code} — {exc.read().decode('utf-8', 'replace')[:500]}")
+    except (urllib.error.URLError, OSError) as exc:
+        # An unreachable or misconfigured webhook should read as a clear failure
+        # in the Actions log, not a traceback.
+        sys.exit(f"Could not reach the Teams webhook: {exc}")
 
 
 def main() -> None:
@@ -309,7 +387,7 @@ def main() -> None:
     else:
         log(f"Fetched {len(prs)} open pull request(s).")
 
-    payload = build_card(day, prs, pr_error)
+    payload = trim_to_fit(build_card(day, prs, pr_error))
 
     if os.environ.get("DRY_RUN") == "1":
         log("DRY_RUN=1, printing payload instead of posting:")

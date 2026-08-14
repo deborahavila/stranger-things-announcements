@@ -62,12 +62,16 @@ One skipped run per day in the Actions log is expected and correct.
 ## Manual runs
 
 ```bash
-# Preview without posting
+# Preview without posting -- any day, any time
 gh workflow run announce.yml -f force_day=Wednesday -f dry_run=true
 
-# Post immediately
-gh workflow run announce.yml -f force_day=Wednesday -f dry_run=false
+# Post today's card immediately
+gh workflow run announce.yml -f dry_run=false
 ```
+
+**A day's card only posts on that day.** Asking to post Wednesday's card on a Friday is
+refused, because it would misinform the team about the release schedule. Previewing is
+always allowed. To override deliberately, add `-f allow_off_day=true`.
 
 Locally:
 
@@ -112,8 +116,10 @@ Each day's card is assembled from `announcements.json`:
 `msteams.entities` with AAD IDs, but there is no channel-wide mention available over an
 incoming webhook. The line is presentational only.
 
-Open pull requests are marked 🚧 for draft and 👀 for awaiting review, drafts first, capped
-at `MAX_PRS_SHOWN` (10) with an overflow line. The action button links to the full list.
+Open pull requests are marked 🚧 for draft and 👀 for awaiting review, drafts first. **Every
+open PR is listed.** The list is trimmed only if the card would exceed `MAX_PAYLOAD_BYTES`
+(24KB), because Teams rejects oversized cards outright and the whole announcement would be
+lost rather than a few entries.
 
 ## Per-day framing
 

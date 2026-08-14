@@ -21,8 +21,11 @@ and posting off-schedule.
 | Wednesday | Release Cut Day! | The release cut will be made around 8pm PST. |
 | Thursday | DEPLOYMENT DAY! | The production deployment will be made around 9pm PST. |
 
-Each card carries a 1200x628 banner plus the current open pull requests in
-`nrgmr/research-platform-ui`, labelled **Draft** or **Open**, drafts first.
+Each card carries a 1200x628 banner plus **every** currently open pull request in
+`nrgmr/research-platform-ui`, marked 🚧 draft or 👀 awaiting review, drafts first.
+
+**A day's card only posts on that day.** `FORCE_DAY` previews any day freely, but posting
+one out of step is refused unless `ALLOW_OFF_DAY=1` is set deliberately.
 
 Copy lives in `announcements.json`. Edit there, never in the scripts. Each day also
 carries an `emoji`, a bold `hype` lead, and a `checklist` of emoji reminders; `mention`
