@@ -23,10 +23,23 @@ NRG_RED = (0xFF, 0x4D, 0x42)
 NRG_BLACK = (0x04, 0x0A, 0x12)
 WHITE = (0xFF, 0xFF, 0xFF)
 
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
 # --- Fonts ----------------------------------------------------------------
-F_TITLE = ("/System/Library/Fonts/Supplemental/Impact.ttf", None)  # heavy condensed poster face
-F_SANS_B = ("/Users/dehbair/Library/Fonts/MessinaSans-Bold.otf", None)
-F_SANS_R = ("/Users/dehbair/Library/Fonts/MessinaSans-Regular.otf", None)
+# Anton SC is vendored (OFL) so the art regenerates identically off this
+# machine. Titles are set in full caps, which Anton SC renders as caps.
+F_TITLE = (str(REPO_ROOT / "brand" / "fonts" / "AntonSC-Regular.ttf"), None)
+
+# Messina Sans is the NEXT Design System body face. It is licensed, so it is not
+# vendored; the local OTFs are used when present and Helvetica stands in if not.
+_MESSINA = Path("/Users/dehbair/Library/Fonts")
+_HELVETICA = "/System/Library/Fonts/HelveticaNeue.ttc"
+if (_MESSINA / "MessinaSans-Bold.otf").exists():
+    F_SANS_B = (str(_MESSINA / "MessinaSans-Bold.otf"), None)
+    F_SANS_R = (str(_MESSINA / "MessinaSans-Regular.otf"), None)
+else:
+    F_SANS_B = (_HELVETICA, 1)
+    F_SANS_R = (_HELVETICA, 0)
 
 MARGIN = 72
 
@@ -216,7 +229,7 @@ def build(day, src, title, desc, out):
 
     # --- Title ------------------------------------------------------------
     max_text_w = W - MARGIN * 2 - 40
-    size = 96
+    size = 108
     while size > 40:
         f_title = font(F_TITLE, size)
         lines = balanced_wrap(title.upper(), f_title, max_text_w, tracking=2.5)
@@ -225,21 +238,35 @@ def build(day, src, title, desc, out):
         size -= 5
     f_title = font(F_TITLE, size)
     lines = balanced_wrap(title.upper(), f_title, max_text_w, tracking=2.5)
-    line_h = int(size * 1.02)
+    line_h = int(size * 0.94)
 
     f_desc = font(F_SANS_R, 23)
     desc_lines = wrap(desc, f_desc, max_text_w - 30)
     desc_h = len(desc_lines) * 32
+    gap = 30
 
-    block_h = len(lines) * line_h + 24 + desc_h
-    title_y = H - MARGIN - 26 - block_h
+    # Anton SC leaves a lot of empty ascender/descender room inside its em box,
+    # so deriving the description position from line_h alone collides with the
+    # title. Measure the rendered ink instead.
+    probe = Image.new("L", (W, H), 0)
+    pd = ImageDraw.Draw(probe)
+    py = 0
+    for ln in lines:
+        track_text(pd, (MARGIN, py), ln, f_title, 255, 2.5)
+        py += line_h
+    ink = probe.getbbox()
+    ink_top, ink_bottom = (ink[1], ink[3]) if ink else (0, len(lines) * line_h)
+
+    # Seat the whole block against the bottom margin, working back from the ink.
+    desc_baseline = H - MARGIN - 18 - desc_h
+    title_y = desc_baseline - gap - ink_bottom
 
     glow_text(canvas, lines, f_title, MARGIN, title_y, line_h,
               NRG_RED, tracking=2.5, glow_radius=20, glow_passes=3)
 
     # --- Description ------------------------------------------------------
     d = ImageDraw.Draw(canvas)
-    dy = title_y + len(lines) * line_h + 22
+    dy = desc_baseline
     for ln in desc_lines:
         d.text((MARGIN + 3, dy), ln, font=f_desc, fill=(235, 232, 238, 240))
         dy += 32
@@ -276,7 +303,6 @@ def build(day, src, title, desc, out):
     print(f"{out}  {size}px title, {len(lines)} line(s), {len(desc_lines)} desc line(s)")
 
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
 CONFIG = json.loads((REPO_ROOT / "announcements.json").read_text(encoding="utf-8"))
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/120.0 Safari/537.36")
