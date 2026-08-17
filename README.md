@@ -115,6 +115,27 @@ python3 scripts/make_art.py
 git add assets && git commit -m "chore: regenerate announcement banners"
 ```
 
+## Release dates and products
+
+Every card carries a dates line and a product label:
+
+```
+📅 Release Cut: 08/19  |  Deployment: 08/20
+🏷️ OIQ / LIQ
+```
+
+The cut is **not weekly**. `nrgmr/research-platform-ui` cuts every 14 days from a fixed
+anchor (`auto-release-branch.yaml`), so roughly half of Wednesdays have no cut at all.
+`release_cycle` in `announcements.json` mirrors that anchor and interval.
+
+On a week with no cut, the label reads **"Next Release Cut"** and points at the next real
+one, rather than inventing a date for the current week. Note the day headlines are still
+fixed copy, so Wednesday of an off-week reads "Release Cut Day!" above a "Next Release Cut"
+date — reword the Wednesday title if that bothers you.
+
+If the anchor ever moves, change `release_cycle.anchor` here to match the upstream workflow;
+nothing detects drift automatically.
+
 ## Card copy
 
 Each day's card is assembled from `announcements.json`:

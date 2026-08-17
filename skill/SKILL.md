@@ -27,6 +27,11 @@ Each card carries a 1200x628 banner plus **every** currently open pull request i
 **A day's card only posts on that day.** `FORCE_DAY` previews any day freely, but posting
 one out of step is refused unless `ALLOW_OFF_DAY=1` is set deliberately.
 
+Cards also carry `📅 Release Cut: MM/DD | Deployment: MM/DD` and a `🏷️ OIQ / LIQ` label.
+The cut runs every 14 days from `release_cycle.anchor`, not weekly, so on an off-week the
+line reads "Next Release Cut" and points at the next real one. If the upstream anchor in
+`auto-release-branch.yaml` moves, update `release_cycle.anchor` — drift is not detected.
+
 Copy lives in `announcements.json`. Edit there, never in the scripts. Each day also
 carries an `emoji`, a bold `hype` lead, and a `checklist` of emoji reminders; `mention`
 and `footer` are top-level.

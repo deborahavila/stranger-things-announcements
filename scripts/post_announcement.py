@@ -32,7 +32,7 @@ import os
 import sys
 import urllib.error
 import urllib.request
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -121,6 +121,46 @@ def resolve_day() -> str | None:
 
     log(f"Cron {schedule!r} is today's 07:00 Pacific run.")
     return day
+
+
+def release_dates(today: date) -> tuple[date, date, bool] | None:
+    """(cut, deployment, is_this_week) for the cut this card should reference.
+
+    The cut is NOT weekly: research-platform-ui cuts every 14 days from a fixed
+    anchor, so roughly half of Wednesdays have none. Announcements still run
+    every weekday, so an off-week points at the next real cut rather than
+    inventing one for the current week.
+    """
+    cyc = CONFIG.get("release_cycle")
+    if not cyc:
+        return None
+    try:
+        anchor = date.fromisoformat(cyc["anchor"])
+        interval = int(cyc["interval_days"])
+        if interval < 1:
+            raise ValueError("interval_days must be positive")
+    except (KeyError, ValueError) as exc:
+        log(f"release_cycle is misconfigured ({exc}); omitting the dates line.")
+        return None
+
+    def is_cut(d: date) -> bool:
+        delta = (d - anchor).days
+        return delta >= 0 and delta % interval == 0
+
+    # This week's Wednesday. Announcements only run Mon-Thu, so this is always
+    # within a day either side of today.
+    wednesday = today + timedelta(days=2 - today.weekday())
+
+    cut = wednesday
+    for _ in range(60):  # guard against an interval that never lands on a Wednesday
+        if is_cut(cut):
+            break
+        cut += timedelta(days=7)
+    else:
+        log("No release cut found within a year of today; omitting the dates line.")
+        return None
+
+    return cut, cut + timedelta(days=1), cut == wednesday
 
 
 def gh_api(path: str, token: str) -> list[dict]:
@@ -222,6 +262,28 @@ def build_card(day: str, prs: list[dict], pr_error: str | None) -> dict:
             "text": f"📢 **{mention}**",
             "wrap": True,
             "spacing": "Medium",
+        })
+
+    dates = release_dates(datetime.now(PACIFIC).date())
+    if dates:
+        cut, deploy, this_week = dates
+        # Label an off-week cut as "Next", so a Wednesday card during a non-cut
+        # week cannot be read as "the cut is today".
+        label = "Release Cut" if this_week else "Next Release Cut"
+        body.append({
+            "type": "TextBlock",
+            "text": f"📅 **{label}:** {cut:%m/%d}  |  **Deployment:** {deploy:%m/%d}",
+            "wrap": True,
+            "spacing": "Small",
+        })
+
+    products = CONFIG.get("products")
+    if products:
+        body.append({
+            "type": "TextBlock",
+            "text": f"🏷️ **{products}**",
+            "wrap": True,
+            "spacing": "None",
         })
 
     emoji = cfg.get("emoji", "")
