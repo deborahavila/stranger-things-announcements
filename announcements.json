@@ -73,6 +73,8 @@
     "anchor": "2025-12-10",
     "interval_days": 14,
     "cut_weekday": "Wednesday",
-    "_source": "nrgmr/research-platform-ui .github/workflows/auto-release-branch.yaml"
+    "_source": "nrgmr/research-platform-ui .github/workflows/auto-release-branch.yaml",
+    "deploy_offset_days": 8,
+    "_verified": "Deploy offset confirmed against 14 consecutive successful builds of research-platform-ui/research-platform-ui-prd-pipeline on Jenkins, all Thursday, all cut+8d, 21:00-22:00 Pacific."
   }
 }

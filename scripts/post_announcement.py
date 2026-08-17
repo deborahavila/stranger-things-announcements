@@ -50,6 +50,9 @@ CONFIG = json.loads((REPO_ROOT / "announcements.json").read_text(encoding="utf-8
 MAX_PAYLOAD_BYTES = 24_000
 # Safety stop for pagination; 10 pages is 1000 open PRs.
 MAX_PR_PAGES = 10
+# Production deploys the SECOND Thursday after the Wednesday cut, not the next
+# day. Verified against 14 consecutive prd-pipeline builds on Jenkins.
+DEFAULT_DEPLOY_OFFSET_DAYS = 8
 HTTP_TIMEOUT = 30
 
 
@@ -135,7 +138,7 @@ def release_dates(today: date) -> tuple[date, date, bool] | None:
     # broken, fall back to this week's Wednesday/Thursday rather than dropping
     # the line, so a config mistake never silently removes it from the card.
     wednesday = today + timedelta(days=2 - today.weekday())
-    fallback = (wednesday, wednesday + timedelta(days=1), True)
+    fallback = (wednesday, wednesday + timedelta(days=DEFAULT_DEPLOY_OFFSET_DAYS), True)
 
     cyc = CONFIG.get("release_cycle")
     if not cyc:
@@ -162,7 +165,8 @@ def release_dates(today: date) -> tuple[date, date, bool] | None:
         log("No release cut found within a year of today; using this week's Wed/Thu.")
         return fallback
 
-    return cut, cut + timedelta(days=1), cut == wednesday
+    offset = int(cyc.get("deploy_offset_days", DEFAULT_DEPLOY_OFFSET_DAYS))
+    return cut, cut + timedelta(days=offset), cut == wednesday
 
 
 def gh_api(path: str, token: str) -> list[dict]:

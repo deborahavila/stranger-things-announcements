@@ -124,6 +124,13 @@ Every card carries a dates line and a product label:
 🏷️ OIQ / LIQ
 ```
 
+**Deployment is the Thursday 8 days after the cut**, not the next day. This was verified
+against 14 consecutive successful builds of
+`research-platform-ui/research-platform-ui-prd-pipeline` on Jenkins, all on a Thursday at
+21:00–22:00 Pacific. `deploy_offset_days` in `release_cycle` holds the offset. Deploys
+occasionally slip by 1–4 days, and one (2026-01-01) was skipped for the holiday; the card
+states the scheduled date, not a guarantee.
+
 The cut is **not weekly**. `nrgmr/research-platform-ui` cuts every 14 days from a fixed
 anchor (`auto-release-branch.yaml`), so roughly half of Wednesdays have no cut at all.
 `release_cycle` in `announcements.json` mirrors that anchor and interval.
