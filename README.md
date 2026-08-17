@@ -7,12 +7,18 @@ America/Los_Angeles**.
 Each card carries a 1200x628 banner and the current open pull requests in
 `nrgmr/research-platform-ui`, labelled **Draft** or **Open**.
 
-| Day | Announcement |
-|---|---|
-| Monday | Be ready for the Release Cut... |
-| Tuesday | The Release Cut is tomorrow... |
-| Wednesday | Release Cut Day! |
-| Thursday | DEPLOYMENT DAY! |
+Cuts and deployments **alternate weeks**, so each weekday has two copy variants and two
+banners. The card picks the right one automatically.
+
+| Day | Cut week | Deploy week |
+|---|---|---|
+| Monday | 🗓️ Be ready for the Release Cut... | 🔍 Verify your work on Staging |
+| Tuesday | ⏳ The Release Cut is tomorrow... | ⏳ Deployment is on Thursday |
+| Wednesday | ✂️ Release Cut Day! | 👀 Final checks before deployment |
+| Thursday | 🛠️ The cut is in — verify on Staging | 🚀 DEPLOYMENT DAY! |
+
+The title is burned into the artwork, so each variant needs its own banner — hence eight
+files in `assets/`, named `<day>-cut.png` and `<day>-deploy.png`.
 
 ## Why this repository is public
 

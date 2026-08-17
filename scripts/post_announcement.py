@@ -126,8 +126,11 @@ def resolve_day() -> str | None:
     return day
 
 
-def release_dates(today: date) -> tuple[date, date, bool] | None:
-    """(cut, deployment, is_this_week) for the cut this card should reference.
+def release_dates(today: date) -> tuple[date, date, str]:
+    """(cut, deployment, week_kind) for the release this card should reference.
+
+    week_kind is "cut_week" or "deploy_week" and selects which copy variant the
+    card uses, so a headline never announces an event that is not happening.
 
     The cut is NOT weekly: research-platform-ui cuts every 14 days from a fixed
     anchor, so roughly half of Wednesdays have none. Announcements still run
@@ -138,7 +141,7 @@ def release_dates(today: date) -> tuple[date, date, bool] | None:
     # broken, fall back to this week's Wednesday/Thursday rather than dropping
     # the line, so a config mistake never silently removes it from the card.
     wednesday = today + timedelta(days=2 - today.weekday())
-    fallback = (wednesday, wednesday + timedelta(days=DEFAULT_DEPLOY_OFFSET_DAYS), True)
+    fallback = (wednesday, wednesday + timedelta(days=DEFAULT_DEPLOY_OFFSET_DAYS), "cut_week")
 
     cyc = CONFIG.get("release_cycle")
     if not cyc:
@@ -156,17 +159,23 @@ def release_dates(today: date) -> tuple[date, date, bool] | None:
         delta = (d - anchor).days
         return delta >= 0 and delta % interval == 0
 
-    cut = wednesday
-    for _ in range(60):  # guard against an interval that never lands on a Wednesday
-        if is_cut(cut):
-            break
-        cut += timedelta(days=7)
-    else:
-        log("No release cut found within a year of today; using this week's Wed/Thu.")
-        return fallback
-
     offset = int(cyc.get("deploy_offset_days", DEFAULT_DEPLOY_OFFSET_DAYS))
-    return cut, cut + timedelta(days=offset), cut == wednesday
+
+    # Cut weeks and deploy weeks alternate, because deployment lands cut+8d --
+    # the Thursday of the following week. On a cut week the card is about the
+    # cut happening now; on a deploy week it is about the release already in
+    # flight, NOT the next future cut, which is still two weeks out.
+    if is_cut(wednesday):
+        return wednesday, wednesday + timedelta(days=offset), "cut_week"
+
+    prior = wednesday
+    for _ in range(8):
+        prior -= timedelta(days=7)
+        if is_cut(prior):
+            return prior, prior + timedelta(days=offset), "deploy_week"
+
+    log("No recent release cut found; using this week's Wed/Thu.")
+    return fallback
 
 
 def gh_api(path: str, token: str) -> list[dict]:
@@ -248,7 +257,13 @@ def asset_url(asset: str) -> str:
 
 
 def build_card(day: str, prs: list[dict], pr_error: str | None) -> dict:
-    cfg = CONFIG["days"][day]
+    day_cfg = CONFIG["days"][day]
+    today = datetime.now(PACIFIC).date()
+    cut, deploy, week_kind = release_dates(today)
+
+    # Per-week-type copy. Fall back to the day entry itself so an older
+    # single-variant config still renders.
+    cfg = {**day_cfg, **day_cfg.get(week_kind, {})}
     body: list[dict] = [
         {
             "type": "Image",
@@ -271,11 +286,7 @@ def build_card(day: str, prs: list[dict], pr_error: str | None) -> dict:
         })
 
     # The dates line is always present -- release_dates never returns None.
-    today = datetime.now(PACIFIC).date()
-    cut, deploy, this_week = release_dates(today)
-    # Label an off-week cut as "Next", so a Wednesday card during a non-cut week
-    # cannot be read as "the cut is today".
-    label = "Release Cut" if this_week else "Next Release Cut"
+    label = "Release Cut"
     cut_txt = f"{cut:%m/%d}" + (" (today)" if cut == today else "")
     deploy_txt = f"{deploy:%m/%d}" + (" (today)" if deploy == today else "")
     body.append({

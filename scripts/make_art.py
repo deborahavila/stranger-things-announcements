@@ -412,9 +412,13 @@ if __name__ == "__main__":
             if probe.size[0] < W or probe.size[1] < H:
                 print(f"  note: {day} source is {probe.size[0]}x{probe.size[1]}, "
                       f"below {W}x{H}; the grade will mask the upscale.")
-        build(day, src_path, cfg["title"], cfg["description"], out_dir / cfg["asset"],
-              zoom=cfg.get("zoom", 1.0),
-              focus=tuple(cfg.get("focus", (0.5, 0.5))),
-              punch=cfg.get("punch", 0.0),
-              saturation=cfg.get("saturation", 0.72),
-              wash=cfg.get("wash", 48))
+        # One banner per week variant: the title is burned into the artwork, so
+        # a single image cannot serve both a cut week and a deploy week.
+        for kind in ("cut_week", "deploy_week"):
+            v = cfg[kind]
+            build(day, src_path, v["title"], v["description"], out_dir / v["asset"],
+                  zoom=cfg.get("zoom", 1.0),
+                  focus=tuple(cfg.get("focus", (0.5, 0.5))),
+                  punch=cfg.get("punch", 0.0),
+                  saturation=cfg.get("saturation", 0.72),
+                  wash=cfg.get("wash", 48))

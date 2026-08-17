@@ -5,48 +5,87 @@
   "asset_base": "https://raw.githubusercontent.com/{owner_repo}/{ref}/assets",
   "days": {
     "Monday": {
-      "title": "Be ready for the Release Cut...",
-      "description": "Prepare your work, and have all possible reviews before going to Staging on Wednesday.",
-      "asset": "monday.png",
       "source_image": "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgi_2L2QTHhJSQiCaeCcQG7xvHIrae-GrFXM-2m27dXatpAZzxbaHU-2YYJ9huRE7smeyyLAJColChnUQBfkWMofKNZEABHWh4hrS6UgKuw4n24F2lu-VSv2Ng-VNrhAbs6MAVTL_K4xNBR/s1600/stranger+9.jpeg",
-      "emoji": "🗓️",
-      "hype": "Release week has started.",
-      "checklist": [
-        "🔍 Request reviews on everything you have open",
-        "🧪 Get CI green early, not on Wednesday morning",
-        "🔗 Link each PR to its ADO ticket"
-      ]
+      "cut_week": {
+        "emoji": "🗓️",
+        "title": "Be ready for the Release Cut...",
+        "hype": "Cut week.",
+        "description": "Prepare your work, and have all possible reviews before going to Staging on Wednesday.",
+        "checklist": [
+          "🔍 Request reviews on everything you have open",
+          "🧪 Get CI green early, not on Wednesday morning",
+          "🔗 Link each PR to its ADO ticket"
+        ],
+        "asset": "monday-cut.png"
+      },
+      "deploy_week": {
+        "emoji": "🔍",
+        "title": "Verify your work on Staging",
+        "hype": "Deploy week.",
+        "description": "The release branch is already cut. Production goes out Thursday.",
+        "checklist": [
+          "🧪 Test your changes on Staging today",
+          "🐞 Raise any regression you find straight away",
+          "🚫 New work merges to develop, not the release branch"
+        ],
+        "asset": "monday-deploy.png"
+      }
     },
     "Tuesday": {
-      "title": "The Release Cut is tomorrow...",
-      "description": "It’s time to check if your work is really ready for Staging.",
-      "asset": "tuesday.png",
       "source_image": "https://static.beebom.com/wp-content/uploads/2025/12/stranger-things-season-5-volume-2.jpg?quality=100",
-      "emoji": "⏳",
-      "hype": "One day left.",
-      "checklist": [
-        "✅ Land your final reviews today",
-        "🧹 Resolve every outstanding comment",
-        "🚦 Confirm your work is genuinely Staging-ready"
-      ]
+      "cut_week": {
+        "emoji": "⏳",
+        "title": "The Release Cut is tomorrow...",
+        "hype": "One day left.",
+        "description": "It’s time to check if your work is really ready for Staging.",
+        "checklist": [
+          "✅ Land your final reviews today",
+          "🧹 Resolve every outstanding comment",
+          "🚦 Confirm your work is genuinely Staging-ready"
+        ],
+        "asset": "tuesday-cut.png"
+      },
+      "deploy_week": {
+        "emoji": "⏳",
+        "title": "Deployment is on Thursday",
+        "hype": "Two days out.",
+        "description": "Anything not verified on Staging by Wednesday night ships as-is.",
+        "checklist": [
+          "🔎 Finish your Staging verification",
+          "🐞 Report blockers now, not on Thursday",
+          "📋 Check your ADO items reflect reality"
+        ],
+        "asset": "tuesday-deploy.png"
+      }
     },
     "Wednesday": {
-      "title": "Release Cut Day!",
-      "description": "The release cut will be made around 8pm PST.",
-      "asset": "wednesday.png",
       "source_image": "https://static0.colliderimages.com/wordpress/wp-content/uploads/2022/08/stranger-things-vfx-sadie-sink-social-featured.jpg",
-      "emoji": "✂️",
-      "hype": "This is the day.",
-      "checklist": [
-        "🛑 Merge before 8pm PST, or wait for the next cut",
-        "👀 Watch for the release branch to appear",
-        "🧯 Raise blockers in this channel before the cut"
-      ]
+      "cut_week": {
+        "emoji": "✂️",
+        "title": "Release Cut Day!",
+        "hype": "This is the day.",
+        "description": "The release cut will be made around 8pm PST.",
+        "checklist": [
+          "🛑 Merge before 8pm PST, or wait for the next cut",
+          "👀 Watch for the release branch to appear",
+          "🧯 Raise blockers in this channel before the cut"
+        ],
+        "asset": "wednesday-cut.png"
+      },
+      "deploy_week": {
+        "emoji": "👀",
+        "title": "Final checks before deployment",
+        "hype": "Deploy is tomorrow.",
+        "description": "Last full day to catch anything before production.",
+        "checklist": [
+          "✅ Sign off your changes on Staging",
+          "🧯 Flag anything that should block the deploy",
+          "📣 Speak up now — tomorrow is too late"
+        ],
+        "asset": "wednesday-deploy.png"
+      }
     },
     "Thursday": {
-      "title": "DEPLOYMENT DAY!",
-      "description": "The production deployment will be made around 9pm PST.",
-      "asset": "thursday.png",
       "source_image": "https://static0.srcdn.com/wordpress/wp-content/uploads/2025/07/vecna-on-the-poster-for-stranger-things-season-5.jpg",
       "zoom": 1.0,
       "focus": [
@@ -56,18 +95,35 @@
       "punch": 0.05,
       "saturation": 1.0,
       "wash": 0,
-      "emoji": "🚀",
-      "hype": "Ship it.",
-      "checklist": [
-        "📋 Verify your changes on Staging before tonight",
-        "🆘 Stay reachable during the deploy window",
-        "🔎 Sanity-check production once it is live"
-      ]
+      "cut_week": {
+        "emoji": "🛠️",
+        "title": "The cut is in — verify on Staging",
+        "hype": "Stabilisation starts.",
+        "description": "The release branch exists. Production deployment follows next Thursday.",
+        "checklist": [
+          "🔬 Verify your changes on Staging",
+          "🩹 Fixes go to the release branch, not develop",
+          "📅 Deployment is next Thursday around 9pm PST"
+        ],
+        "asset": "thursday-cut.png"
+      },
+      "deploy_week": {
+        "emoji": "🚀",
+        "title": "DEPLOYMENT DAY!",
+        "hype": "Ship it.",
+        "description": "The production deployment will be made around 9pm PST.",
+        "checklist": [
+          "📋 Verify your changes on Staging before tonight",
+          "🆘 Stay reachable during the deploy window",
+          "🔎 Sanity-check production once it is live"
+        ],
+        "asset": "thursday-deploy.png"
+      }
     }
   },
   "logo": "brand/nrg-logo.png",
   "mention": "@everyone",
-  "footer": "Release cut every 14 days · Deployment the following day",
+  "footer": "Release cut every other Wednesday · Deployment the Thursday of the following week",
   "products": "OIQ / LIQ",
   "release_cycle": {
     "anchor": "2025-12-10",
