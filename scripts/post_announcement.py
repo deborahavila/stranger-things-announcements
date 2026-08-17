@@ -131,25 +131,27 @@ def release_dates(today: date) -> tuple[date, date, bool] | None:
     every weekday, so an off-week points at the next real cut rather than
     inventing one for the current week.
     """
+    # The dates line is always rendered. If the cycle config is missing or
+    # broken, fall back to this week's Wednesday/Thursday rather than dropping
+    # the line, so a config mistake never silently removes it from the card.
+    wednesday = today + timedelta(days=2 - today.weekday())
+    fallback = (wednesday, wednesday + timedelta(days=1), True)
+
     cyc = CONFIG.get("release_cycle")
     if not cyc:
-        return None
+        return fallback
     try:
         anchor = date.fromisoformat(cyc["anchor"])
         interval = int(cyc["interval_days"])
         if interval < 1:
             raise ValueError("interval_days must be positive")
     except (KeyError, ValueError) as exc:
-        log(f"release_cycle is misconfigured ({exc}); omitting the dates line.")
-        return None
+        log(f"release_cycle is misconfigured ({exc}); using this week's Wed/Thu.")
+        return fallback
 
     def is_cut(d: date) -> bool:
         delta = (d - anchor).days
         return delta >= 0 and delta % interval == 0
-
-    # This week's Wednesday. Announcements only run Mon-Thu, so this is always
-    # within a day either side of today.
-    wednesday = today + timedelta(days=2 - today.weekday())
 
     cut = wednesday
     for _ in range(60):  # guard against an interval that never lands on a Wednesday
@@ -157,8 +159,8 @@ def release_dates(today: date) -> tuple[date, date, bool] | None:
             break
         cut += timedelta(days=7)
     else:
-        log("No release cut found within a year of today; omitting the dates line.")
-        return None
+        log("No release cut found within a year of today; using this week's Wed/Thu.")
+        return fallback
 
     return cut, cut + timedelta(days=1), cut == wednesday
 
@@ -264,18 +266,20 @@ def build_card(day: str, prs: list[dict], pr_error: str | None) -> dict:
             "spacing": "Medium",
         })
 
-    dates = release_dates(datetime.now(PACIFIC).date())
-    if dates:
-        cut, deploy, this_week = dates
-        # Label an off-week cut as "Next", so a Wednesday card during a non-cut
-        # week cannot be read as "the cut is today".
-        label = "Release Cut" if this_week else "Next Release Cut"
-        body.append({
-            "type": "TextBlock",
-            "text": f"📅 **{label}:** {cut:%m/%d}  |  **Deployment:** {deploy:%m/%d}",
-            "wrap": True,
-            "spacing": "Small",
-        })
+    # The dates line is always present -- release_dates never returns None.
+    today = datetime.now(PACIFIC).date()
+    cut, deploy, this_week = release_dates(today)
+    # Label an off-week cut as "Next", so a Wednesday card during a non-cut week
+    # cannot be read as "the cut is today".
+    label = "Release Cut" if this_week else "Next Release Cut"
+    cut_txt = f"{cut:%m/%d}" + (" (today)" if cut == today else "")
+    deploy_txt = f"{deploy:%m/%d}" + (" (today)" if deploy == today else "")
+    body.append({
+        "type": "TextBlock",
+        "text": f"📅 **{label}:** {cut_txt}  |  **Deployment:** {deploy_txt}",
+        "wrap": True,
+        "spacing": "Small",
+    })
 
     products = CONFIG.get("products")
     if products:

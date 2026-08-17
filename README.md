@@ -128,6 +128,13 @@ The cut is **not weekly**. `nrgmr/research-platform-ui` cuts every 14 days from 
 anchor (`auto-release-branch.yaml`), so roughly half of Wednesdays have no cut at all.
 `release_cycle` in `announcements.json` mirrors that anchor and interval.
 
+On release cut day the date is marked `(today)`, and on deployment day the deployment date
+is marked the same way.
+
+**The dates line is always rendered.** If `release_cycle` is missing or malformed, it falls
+back to this week's Wednesday and Thursday and logs a warning, rather than dropping the line
+from the card.
+
 On a week with no cut, the label reads **"Next Release Cut"** and points at the next real
 one, rather than inventing a date for the current week. Note the day headlines are still
 fixed copy, so Wednesday of an off-week reads "Release Cut Day!" above a "Next Release Cut"
