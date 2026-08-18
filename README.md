@@ -31,7 +31,7 @@ from a public repository for the cards to display at all.
 
 ```
 announcements.json              Copy, imagery, and target repo. Edit copy here only.
-assets/*.png                    The four 1200x628 banners, served raw to Teams.
+assets/*.png                    The eight 1200x628 banners, served raw to Teams.
 scripts/post_announcement.py    Builds and posts the Adaptive Card.
 scripts/make_art.py             Regenerates the banners from the source stills.
 skill/SKILL.md                  Claude Code skill for previewing and posting manually.

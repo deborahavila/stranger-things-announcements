@@ -53,6 +53,8 @@ MAX_PR_PAGES = 10
 # Production deploys the SECOND Thursday after the Wednesday cut, not the next
 # day. Verified against 14 consecutive prd-pipeline builds on Jenkins.
 DEFAULT_DEPLOY_OFFSET_DAYS = 8
+# Used only when release_cycle.cut_weekday is absent or unrecognised.
+DEFAULT_CUT_WEEKDAY = "Wednesday"
 HTTP_TIMEOUT = 30
 
 
@@ -133,17 +135,28 @@ def release_dates(today: date) -> tuple[date, date, str]:
     card uses, so a headline never announces an event that is not happening.
 
     The cut is NOT weekly: research-platform-ui cuts every 14 days from a fixed
-    anchor, so roughly half of Wednesdays have none. Announcements still run
-    every weekday, so an off-week points at the next real cut rather than
-    inventing one for the current week.
+    anchor, so roughly half of cut weekdays have none. Announcements still run
+    every weekday, so on an off-week the card describes the release already in
+    flight -- the PRIOR cut and its upcoming deployment -- rather than the next
+    future cut, which is still two weeks out.
     """
-    # The dates line is always rendered. If the cycle config is missing or
-    # broken, fall back to this week's Wednesday/Thursday rather than dropping
-    # the line, so a config mistake never silently removes it from the card.
-    wednesday = today + timedelta(days=2 - today.weekday())
-    fallback = (wednesday, wednesday + timedelta(days=DEFAULT_DEPLOY_OFFSET_DAYS), "cut_week")
+    cyc = CONFIG.get("release_cycle") or {}
 
-    cyc = CONFIG.get("release_cycle")
+    # Which weekday the cut lands on, so moving the upstream cut is a config
+    # change rather than a code change.
+    name = cyc.get("cut_weekday", DEFAULT_CUT_WEEKDAY)
+    try:
+        cut_dow = WEEKDAYS.index(name)
+    except ValueError:
+        log(f"cut_weekday={name!r} is not a weekday name; assuming {DEFAULT_CUT_WEEKDAY}.")
+        cut_dow = WEEKDAYS.index(DEFAULT_CUT_WEEKDAY)
+
+    # The dates line is always rendered. If the cycle config is missing or
+    # broken, fall back to this week's cut weekday rather than dropping the
+    # line, so a config mistake never silently removes it from the card.
+    cut_day = today + timedelta(days=cut_dow - today.weekday())
+    fallback = (cut_day, cut_day + timedelta(days=DEFAULT_DEPLOY_OFFSET_DAYS), "cut_week")
+
     if not cyc:
         return fallback
     try:
@@ -152,7 +165,7 @@ def release_dates(today: date) -> tuple[date, date, str]:
         if interval < 1:
             raise ValueError("interval_days must be positive")
     except (KeyError, ValueError) as exc:
-        log(f"release_cycle is misconfigured ({exc}); using this week's Wed/Thu.")
+        log(f"release_cycle is misconfigured ({exc}); using this week's {name}.")
         return fallback
 
     def is_cut(d: date) -> bool:
@@ -165,16 +178,16 @@ def release_dates(today: date) -> tuple[date, date, str]:
     # the Thursday of the following week. On a cut week the card is about the
     # cut happening now; on a deploy week it is about the release already in
     # flight, NOT the next future cut, which is still two weeks out.
-    if is_cut(wednesday):
-        return wednesday, wednesday + timedelta(days=offset), "cut_week"
+    if is_cut(cut_day):
+        return cut_day, cut_day + timedelta(days=offset), "cut_week"
 
-    prior = wednesday
+    prior = cut_day
     for _ in range(8):
         prior -= timedelta(days=7)
         if is_cut(prior):
             return prior, prior + timedelta(days=offset), "deploy_week"
 
-    log("No recent release cut found; using this week's Wed/Thu.")
+    log(f"No recent release cut found; using this week's {name}.")
     return fallback
 
 
