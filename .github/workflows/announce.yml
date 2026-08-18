@@ -55,8 +55,14 @@ jobs:
           ASSET_REF: ${{ github.sha }}
           FORCE_DAY: ${{ inputs.force_day }}
           # -f submits strings, so match both the boolean and the string form.
-          # Fails safe: anything unrecognised is treated as a dry run.
-          DRY_RUN: ${{ (inputs.dry_run == false || inputs.dry_run == 'false') && '' || '1' }}
+          # Fails safe: on a manual run, anything unrecognised is a dry run.
+          #
+          # The truthy branch MUST hold '1', never ''. `a && b || c` returns c
+          # whenever b is falsy, and '' is falsy, so `cond && '' || '1'` yields
+          # '1' for every input -- which silently made every run a dry run and
+          # posted nothing at all. Scheduled runs have no inputs, so they are
+          # excluded by event name rather than by testing inputs.dry_run.
+          DRY_RUN: ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run != false && inputs.dry_run != 'false') && '1' || '0' }}
           # Fails safe: only an explicit true permits an off-day post.
           ALLOW_OFF_DAY: ${{ (inputs.allow_off_day == true || inputs.allow_off_day == 'true') && '1' || '' }}
           # Identifies which of the two DST crons fired. Empty on manual runs.
