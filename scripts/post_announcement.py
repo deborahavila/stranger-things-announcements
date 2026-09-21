@@ -164,15 +164,19 @@ def release_dates(today: date) -> tuple[date, date, str]:
         interval = int(cyc["interval_days"])
         if interval < 1:
             raise ValueError("interval_days must be positive")
-    except (KeyError, ValueError) as exc:
+    except (KeyError, ValueError, TypeError) as exc:
         log(f"release_cycle is misconfigured ({exc}); using this week's {name}.")
         return fallback
+
+    try:
+        offset = int(cyc.get("deploy_offset_days", DEFAULT_DEPLOY_OFFSET_DAYS))
+    except (ValueError, TypeError) as exc:
+        log(f"deploy_offset_days is misconfigured ({exc}); defaulting to {DEFAULT_DEPLOY_OFFSET_DAYS}.")
+        offset = DEFAULT_DEPLOY_OFFSET_DAYS
 
     def is_cut(d: date) -> bool:
         delta = (d - anchor).days
         return delta >= 0 and delta % interval == 0
-
-    offset = int(cyc.get("deploy_offset_days", DEFAULT_DEPLOY_OFFSET_DAYS))
 
     # Cut weeks and deploy weeks alternate, because deployment lands cut+8d --
     # the Thursday of the following week. On a cut week the card is about the
