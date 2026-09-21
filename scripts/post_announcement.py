@@ -350,7 +350,9 @@ def build_card(day: str, prs: list[dict], pr_error: str | None) -> dict:
             "spacing": "Small",
         })
 
-    body.extend(_pr_section(prs, pr_error))
+    github_to_teams = CONFIG.get("github_to_teams") or {}
+    mentions: dict = {}
+    body.extend(_pr_section(prs, pr_error, github_to_teams, mentions))
 
     footer = CONFIG.get("footer")
     if footer:
@@ -364,7 +366,7 @@ def build_card(day: str, prs: list[dict], pr_error: str | None) -> dict:
             "separator": True,
         })
 
-    return envelope(body, day, cfg)
+    return envelope(body, day, cfg, mentions)
 
 
 # Draft PRs are the ones at risk for the cut, so they get the attention-seeking
@@ -382,7 +384,36 @@ def is_pr_line(block: dict) -> bool:
     return block.get("type") == "TextBlock" and PR_LINK_MARKER in block.get("text", "")
 
 
-def _pr_section(prs: list[dict], pr_error: str | None) -> list[dict]:
+def _mention_for(author: str, github_to_teams: dict, mentions: dict) -> str:
+    """Return the display text for a PR author, mutating `mentions` in place
+    with any new mention entity (the caller reads entities back from that
+    shared dict, not from this function's return value).
+
+    A plain "@login" string in card text is never a real Teams mention --
+    Teams only notifies when the text contains the exact `<at>Name</at>`
+    placeholder AND the card's `msteams.entities` carries a matching
+    `mentioned.id` (the person's Teams email/AAD id). GitHub usernames alone
+    don't tell us that id, so an author missing from `github_to_teams` falls
+    back to the old plain-text form rather than silently producing a broken
+    or unsent mention.
+    """
+    person = github_to_teams.get(author)
+    if not person or not person.get("email"):
+        return f"_{author}_"
+
+    name = person.get("name", author)
+    placeholder = f"<at>{name}</at>"
+    entity_id = person["email"]
+    if entity_id not in mentions:
+        mentions[entity_id] = {
+            "type": "mention",
+            "text": placeholder,
+            "mentioned": {"id": entity_id, "name": name},
+        }
+    return placeholder
+
+
+def _pr_section(prs: list[dict], pr_error: str | None, github_to_teams: dict, mentions: dict) -> list[dict]:
     repo = CONFIG["pr_repo"]
     if pr_error:
         return [{
@@ -418,9 +449,10 @@ def _pr_section(prs: list[dict], pr_error: str | None) -> list[dict]:
         if len(title) > 90:
             title = title[:87].rstrip() + "…"
         marker = STATUS_EMOJI.get(pr["status"], "•")
+        author_text = _mention_for(pr["author"], github_to_teams, mentions)
         blocks.append({
             "type": "TextBlock",
-            "text": f"{marker} [#{pr['number']}]({pr['url']}) {title} — _{pr['author']}_",
+            "text": f"{marker} [#{pr['number']}]({pr['url']}) {title} — {author_text}",
             "wrap": True,
             "spacing": "Small",
         })
@@ -476,12 +508,15 @@ def trim_to_fit(payload: dict) -> dict:
     return payload
 
 
-def envelope(body: list[dict], day: str, cfg: dict) -> dict:
+def envelope(body: list[dict], day: str, cfg: dict, mentions: dict | None = None) -> dict:
     """Wrap the body in the message shape Power Automate expects.
 
     A bare {"text": ...} payload returns HTTP 202 and then silently fails inside
     the flow run, so the full Adaptive Card attachment is mandatory.
     """
+    msteams = {"width": "Full"}
+    if mentions:
+        msteams["entities"] = list(mentions.values())
     return {
         "type": "message",
         "attachments": [
@@ -492,7 +527,7 @@ def envelope(body: list[dict], day: str, cfg: dict) -> dict:
                     "type": "AdaptiveCard",
                     "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
                     "version": "1.4",
-                    "msteams": {"width": "Full"},
+                    "msteams": msteams,
                     "body": body,
                     "actions": [
                         {
