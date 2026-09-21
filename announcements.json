@@ -123,6 +123,11 @@
   },
   "logo": "brand/nrg-logo.png",
   "mention": "@everyone",
+  "jenkins_job": "research-platform-ui-prd-pipeline",
+  "github_to_teams": {
+    "deborahavila": {"name": "Deborah Avila", "email": "deborah.avila.ap@nrgmr.com"},
+    "Mukesh-Jat-nrg": {"name": "Mukesh Jat", "email": "mukesh.jat.ap@nrgmr.com"}
+  },
   "footer": "Release cut every other Wednesday · Deployment the Thursday of the following week",
   "products": "OIQ / LIQ",
   "release_cycle": {
