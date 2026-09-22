@@ -4,10 +4,15 @@ name: Release Cycle Announcement
 # 14:00 and 15:00 UTC covers 07:00 Pacific year-round; post_announcement.py gates
 # on the cron that actually triggered the run (not the wall clock), so exactly one
 # of the two runs posts and a delayed run is never skipped outright.
+#
+# Both crons are offset 7 minutes past the hour, not on it: GitHub documents
+# on-the-hour schedules as the most congested slot for the scheduler, where
+# runs can queue for hours. post_announcement.py only reads the hour field
+# (schedule.split()[1]), so the minute offset does not affect its matching.
 on:
   schedule:
-    - cron: "0 14 * * 1-4" # 07:00 PDT (summer)
-    - cron: "0 15 * * 1-4" # 07:00 PST (winter)
+    - cron: "7 14 * * 1-4" # ~07:07 PDT (summer)
+    - cron: "7 15 * * 1-4" # ~07:07 PST (winter)
   workflow_dispatch:
     inputs:
       force_day:
